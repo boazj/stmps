@@ -586,15 +586,20 @@ func (connection *SubsonicConnection) CreatePlaylist(id, name string, songIds []
 }
 
 func (connection *SubsonicConnection) getResponse(caller, requestUrl string) (*SubsonicResponse, error) {
+	req, err := http.NewRequest(http.MethodGet, requestUrl, nil)
+	if err != nil {
+		return nil, fmt.Errorf("[%s] Could not create request: %v", caller, err)
+	}
+
 	if connection.Authentik && len(connection.ClientId) > 0 {
 		if len(connection.token) == 0 {
-			auth, err := http.NewRequest(http.MethodPost, connection.AuthURL, nil)
+			payload := fmt.Sprintf("grant_type=client_credentials&client_id=%s&username=%s&password=%s&scope=profile", connection.ClientId, connection.Username, connection.Password)
+			auth, err := http.NewRequest(http.MethodPost, connection.AuthURL, strings.NewReader(payload))
 			if err != nil {
 				return nil, fmt.Errorf("[%s] Could not create SSO auth request: %v", caller, err)
 			}
 			auth.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-			auth.Body.Set(fmt.Sprintf("grant_type=client_credentials&client_id=%s&username=%s&password=%s&scope=profile", connection.ClientId, connection.Username, connection.Password))
-			authRes, err := http.Client{}.Do(auth)
+			authRes, err := http.DefaultClient.Do(auth)
 			if err != nil {
 				return nil, fmt.Errorf("[%s] Failed when generating SSO auth token: %v", caller, err)
 			}
@@ -615,14 +620,10 @@ func (connection *SubsonicConnection) getResponse(caller, requestUrl string) (*S
 			connection.token = authResponse.AccessToken
 		}
 		// if not err
-		req.Header.Set("Authorization", "Bearer "+token)
+		req.Header.Set("Authorization", "Bearer "+connection.token)
 	}
 
-	req, err := http.NewRequest(http.MethodGet, requestUrl, nil)
-	if err != nil {
-		return nil, fmt.Errorf("[%s] Could not create request: %v", caller, err)
-	}
-	res, err := http.Client{}.Do(req)
+	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("[%s] failed to make GET request: %v", caller, err)
 	}

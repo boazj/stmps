@@ -45,3 +45,5 @@ require (
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/spezifisch/stmps => github.com/boazj/stmps v0.0.0-20241028072421-4a8428bc06cc

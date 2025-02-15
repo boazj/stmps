@@ -21,9 +21,12 @@ import (
 	"github.com/spf13/viper"
 )
 
-var osExit = os.Exit  // A variable to allow mocking os.Exit in tests
-var headlessMode bool // This can be set to true during tests
-var testMode bool     // This can be set to true during tests, too
+var (
+	osExit       = os.Exit // A variable to allow mocking os.Exit in tests
+	headlessMode bool      // This can be set to true during tests
+	testMode     bool      // This can be set to true during tests, too
+)
+
 const DEVELOPMENT = "development"
 
 var Version string = DEVELOPMENT
@@ -95,8 +98,8 @@ func initCommandHandler(logger *logger.Logger) {
 		logger.PrintError("Failed to load command-shortcut config", err)
 	}
 
-	//env := keybinding.SetupEnvironment()
-	//keybinding.RegisterCommands(env)
+	// env := keybinding.SetupEnvironment()
+	// keybinding.RegisterCommands(env)
 }
 
 // return codes:
@@ -199,6 +202,9 @@ func main() {
 	connection.SetClientInfo(clientName, clientVersion)
 	connection.Username = viper.GetString("auth.username")
 	connection.Password = viper.GetString("auth.password")
+	connection.Authentik = viper.GetBool("sso.authentik")
+	connection.ClientId = viper.GetString("sso.clientid")
+	connection.AuthURL = viper.GetString("sso.authurl")
 	connection.Host = viper.GetString("server.host")
 	connection.PlaintextAuth = viper.GetBool("auth.plaintext")
 	connection.Scrobble = viper.GetBool("server.scrobble")

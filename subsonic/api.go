@@ -30,12 +30,17 @@ type SubsonicConnection struct {
 	Scrobble         bool
 	RandomSongNumber uint
 
+	Authentik bool
+	AuthURL   string
+	ClientId  string
+
 	clientName    string
 	clientVersion string
 
 	logger         logger.LoggerInterface
 	directoryCache map[string]SubsonicResponse
 	coverArts      map[string]image.Image
+	token          string
 }
 
 func Init(logger logger.LoggerInterface) *SubsonicConnection {
@@ -46,6 +51,7 @@ func Init(logger logger.LoggerInterface) *SubsonicConnection {
 		logger:         logger,
 		directoryCache: make(map[string]SubsonicResponse),
 		coverArts:      make(map[string]image.Image),
+		token:          "",
 	}
 }
 
@@ -84,6 +90,13 @@ type Ider interface {
 }
 
 // response structs
+type AuthResponse struct {
+	AccessToken string `json:"access_token"`
+	TokenType   string `json:"token_type"`
+	ExpiresIn   int    `json:"expires_in"`
+	IdToken     string `json:"id_token"`
+}
+
 type SubsonicError struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`
@@ -495,7 +508,7 @@ func (connection *SubsonicConnection) ToggleStar(id string, starredItems map[str
 	query.Set("id", id)
 
 	_, ok := starredItems[id]
-	var action = "star"
+	action := "star"
 	// If the key exists, we're unstarring
 	if ok {
 		action = "unstar"
@@ -530,7 +543,6 @@ func (connection *SubsonicConnection) GetPlaylists() (*SubsonicResponse, error) 
 		}
 
 		response, err := connection.GetPlaylist(string(playlist.Id))
-
 		if err != nil {
 			return nil, err
 		}
@@ -574,7 +586,43 @@ func (connection *SubsonicConnection) CreatePlaylist(id, name string, songIds []
 }
 
 func (connection *SubsonicConnection) getResponse(caller, requestUrl string) (*SubsonicResponse, error) {
-	res, err := http.Get(requestUrl)
+	if connection.Authentik && len(connection.ClientId) > 0 {
+		if len(connection.token) == 0 {
+			auth, err := http.NewRequest(http.MethodPost, connection.AuthURL, nil)
+			if err != nil {
+				return nil, fmt.Errorf("[%s] Could not create SSO auth request: %v", caller, err)
+			}
+			auth.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			auth.Body.Set(fmt.Sprintf("grant_type=client_credentials&client_id=%s&username=%s&password=%s&scope=profile", connection.ClientId, connection.Username, connection.Password))
+			authRes, err := http.Client{}.Do(auth)
+			if err != nil {
+				return nil, fmt.Errorf("[%s] Failed when generating SSO auth token: %v", caller, err)
+			}
+			if authRes.Body != nil {
+				defer authRes.Body.Close()
+			} else {
+				return nil, fmt.Errorf("[%s] SSO auth response body is nil", caller)
+			}
+			body, err := io.ReadAll(authRes.Body)
+			if err != nil {
+				return nil, fmt.Errorf("[%s] failed to read SSO auth response body: %v", caller, err)
+			}
+			var authResponse AuthResponse
+			err = json.Unmarshal(body, &authResponse)
+			if err != nil {
+				return nil, fmt.Errorf("[%s] failed to unmarshal SSO auth response body: %v", caller, err)
+			}
+			connection.token = authResponse.AccessToken
+		}
+		// if not err
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+
+	req, err := http.NewRequest(http.MethodGet, requestUrl, nil)
+	if err != nil {
+		return nil, fmt.Errorf("[%s] Could not create request: %v", caller, err)
+	}
+	res, err := http.Client{}.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("[%s] failed to make GET request: %v", caller, err)
 	}

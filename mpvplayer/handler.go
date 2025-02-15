@@ -3,9 +3,20 @@
 
 package mpvplayer
 
+//#include <mpv/client.h>
+import "C"
+
 import (
+	"unsafe"
+
 	"github.com/supersonic-app/go-mpv"
 )
+
+type PropertyEvent struct {
+	Name   string
+	Format mpv.Format
+	Data   unsafe.Pointer
+}
 
 func (p *Player) EventLoop() {
 	if err := p.instance.ObserveProperty(0, "playback-time", mpv.FORMAT_INT64); err != nil {
@@ -23,28 +34,37 @@ func (p *Player) EventLoop() {
 			// quit signal
 			break
 		} else if evt.Event_Id == mpv.EVENT_PROPERTY_CHANGE {
-			// one of our observed properties changed. which one is probably extractable from evt.Data.. somehow.
+			if evt.Data == nil {
+				p.logger.Printf("mpv.EventLoop (%s): Has nil Data", evt.Event_Id.String())
+				continue
+			}
+			propChangeEvent := (*C.struct_mpv_event_property)(evt.Data)
+			name := C.GoString((*C.char)(propChangeEvent.name))
 
-			position, err := p.getPropertyInt64("playback-time")
-			if err != nil {
-				p.logger.Printf("mpv.EventLoop (%s): GetProperty %s -- %s", evt.Event_Id.String(), "playback-time", err.Error())
+			if mpv.Format(propChangeEvent.format) == mpv.FORMAT_NONE {
+				continue
 			}
-			duration, err := p.getPropertyInt64("duration")
-			if err != nil {
-				p.logger.Printf("mpv.EventLoop (%s): GetProperty %s -- %s", evt.Event_Id.String(), "duration", err.Error())
+			if name == "playback-time" {
+				position, err := p.getPropertyInt64("playback-time")
+				if err != nil {
+					p.logger.Printf("mpv.EventLoop (%s): GetProperty %s -- %s", evt.Event_Id.String(), "playback-time", err.Error())
+				}
+				p.State.Position = position
+				p.remoteState.timePos = float64(position)
+			} else if name == "duration" {
+				duration, err := p.getPropertyInt64("duration")
+				if err != nil {
+					p.logger.Printf("mpv.EventLoop (%s): GetProperty %s -- %s", evt.Event_Id.String(), "duration", err.Error())
+				}
+				p.State.Duration = duration
+			} else if name == "volume" {
+				volume, err := p.getPropertyInt64("volume")
+				if err != nil {
+					p.logger.Printf("mpv.EventLoop (%s): GetProperty %s -- %s", evt.Event_Id.String(), "volume", err.Error())
+				}
+				p.State.Volume = volume
 			}
-			volume, err := p.getPropertyInt64("volume")
-			if err != nil {
-				p.logger.Printf("mpv.EventLoop (%s): GetProperty %s -- %s", evt.Event_Id.String(), "volume", err.Error())
-			}
-
-			statusData := StatusData{
-				Volume:   volume,
-				Position: position,
-				Duration: duration,
-			}
-			p.remoteState.timePos = float64(statusData.Position)
-			p.sendGuiDataEvent(EventStatus, statusData)
+			p.sendGuiDataEvent(EventStatus, StatusUpdate{})
 		} else if evt.Event_Id == mpv.EVENT_END_FILE && !p.replaceInProgress {
 			// we don't want to update anything if we're in the process of replacing the current track
 

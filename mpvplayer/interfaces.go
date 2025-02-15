@@ -13,7 +13,7 @@ const (
 	// unpaused/paused song, data: QueueItem
 	EventUnpaused
 	EventPaused
-	// UI status update, data: StatusData
+	// UI status update, data: StatusUpdate
 	EventStatus
 )
 

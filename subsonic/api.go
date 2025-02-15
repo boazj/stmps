@@ -413,7 +413,9 @@ func (connection *SubsonicConnection) GetCoverArt(id string) (image.Image, error
 	query.Set("id", id)
 	query.Set("f", "image/png")
 	caller := "GetCoverArt"
-	res, err := http.Get(connection.Host + "/rest/getCoverArt" + "?" + query.Encode())
+	requestUrl := connection.Host + "/rest/getCoverArt" + "?" + query.Encode()
+	req, err := connection.baseRequest("GetCoverArt", http.MethodGet, requestUrl, nil)
+	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("[%s] failed to make GET request: %v", caller, err)
 	}
@@ -585,42 +587,57 @@ func (connection *SubsonicConnection) CreatePlaylist(id, name string, songIds []
 	return connection.getResponse("GetPlaylist", requestUrl)
 }
 
-func (connection *SubsonicConnection) getResponse(caller, requestUrl string) (*SubsonicResponse, error) {
-	req, err := http.NewRequest(http.MethodGet, requestUrl, nil)
-	if err != nil {
-		return nil, fmt.Errorf("[%s] Could not create request: %v", caller, err)
-	}
-
+func (connection *SubsonicConnection) GetAuthToken(caller string) (string, string, error) {
 	if connection.Authentik && len(connection.ClientId) > 0 {
 		if len(connection.token) == 0 {
 			payload := fmt.Sprintf("grant_type=client_credentials&client_id=%s&username=%s&password=%s&scope=profile", connection.ClientId, connection.Username, connection.Password)
 			auth, err := http.NewRequest(http.MethodPost, connection.AuthURL, strings.NewReader(payload))
 			if err != nil {
-				return nil, fmt.Errorf("[%s] Could not create SSO auth request: %v", caller, err)
+				return "", "", fmt.Errorf("[%s] Could not create SSO auth request: %v", caller, err)
 			}
 			auth.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 			authRes, err := http.DefaultClient.Do(auth)
 			if err != nil {
-				return nil, fmt.Errorf("[%s] Failed when generating SSO auth token: %v", caller, err)
+				return "", "", fmt.Errorf("[%s] Failed when generating SSO auth token: %v", caller, err)
 			}
 			if authRes.Body != nil {
 				defer authRes.Body.Close()
 			} else {
-				return nil, fmt.Errorf("[%s] SSO auth response body is nil", caller)
+				return "", "", fmt.Errorf("[%s] SSO auth response body is nil", caller)
 			}
 			body, err := io.ReadAll(authRes.Body)
 			if err != nil {
-				return nil, fmt.Errorf("[%s] failed to read SSO auth response body: %v", caller, err)
+				return "", "", fmt.Errorf("[%s] failed to read SSO auth response body: %v", caller, err)
 			}
 			var authResponse AuthResponse
 			err = json.Unmarshal(body, &authResponse)
 			if err != nil {
-				return nil, fmt.Errorf("[%s] failed to unmarshal SSO auth response body: %v", caller, err)
+				return "", "", fmt.Errorf("[%s] failed to unmarshal SSO auth response body: %v", caller, err)
 			}
 			connection.token = authResponse.AccessToken
 		}
-		// if not err
-		req.Header.Set("Authorization", "Bearer "+connection.token)
+		return "Authorization", "Bearer " + connection.token, nil
+	}
+	return "", "", nil
+}
+
+func (connection *SubsonicConnection) baseRequest(caller, method, requestUrl string, body io.Reader) (*http.Request, error) {
+	req, err := http.NewRequest(method, requestUrl, body)
+	if err != nil {
+		return nil, fmt.Errorf("[%s] Could not create request: %v", caller, err)
+	}
+	header, value, err := connection.GetAuthToken(caller)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set(header, value)
+	return req, nil
+}
+
+func (connection *SubsonicConnection) getResponse(caller, requestUrl string) (*SubsonicResponse, error) {
+	req, err := connection.baseRequest(caller, http.MethodGet, requestUrl, nil)
+	if err != nil {
+		return nil, fmt.Errorf("[%s] Could not create request: %v", caller, err)
 	}
 
 	res, err := http.DefaultClient.Do(req)
@@ -656,7 +673,8 @@ func (connection *SubsonicConnection) DeletePlaylist(id string) error {
 	query := defaultQuery(connection)
 	query.Set("id", id)
 	requestUrl := connection.Host + "/rest/deletePlaylist" + "?" + query.Encode()
-	_, err := http.Get(requestUrl)
+	req, err := connection.baseRequest("DeletePlaylist", http.MethodGet, requestUrl, nil)
+	_, err = http.DefaultClient.Do(req)
 	return err
 }
 
@@ -665,7 +683,8 @@ func (connection *SubsonicConnection) AddSongToPlaylist(playlistId string, songI
 	query.Set("playlistId", playlistId)
 	query.Set("songIdToAdd", songId)
 	requestUrl := connection.Host + "/rest/updatePlaylist" + "?" + query.Encode()
-	_, err := http.Get(requestUrl)
+	req, err := connection.baseRequest("AddSongToPlaylist", http.MethodGet, requestUrl, nil)
+	_, err = http.DefaultClient.Do(req)
 	return err
 }
 
@@ -674,7 +693,8 @@ func (connection *SubsonicConnection) RemoveSongFromPlaylist(playlistId string, 
 	query.Set("playlistId", playlistId)
 	query.Set("songIndexToRemove", strconv.Itoa(songIndex))
 	requestUrl := connection.Host + "/rest/updatePlaylist" + "?" + query.Encode()
-	_, err := http.Get(requestUrl)
+	req, err := connection.baseRequest("RemoveSongFromPlaylist", http.MethodGet, requestUrl, nil)
+	_, err = http.DefaultClient.Do(req)
 	return err
 }
 

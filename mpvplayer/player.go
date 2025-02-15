@@ -25,6 +25,11 @@ type Player struct {
 	replaceInProgress bool
 	stopped           bool
 
+	State struct {
+		Volume   int64
+		Position int64
+		Duration int64
+	}
 	// player state
 	remoteState struct {
 		timePos float64
@@ -40,30 +45,18 @@ type Player struct {
 
 var _ remote.ControlledPlayer = (*Player)(nil)
 
-func NewPlayer(logger logger.LoggerInterface) (player *Player, err error) {
+func NewPlayer(logger logger.LoggerInterface, options map[string]string) (player *Player, err error) {
 	m := mpv.Create()
 
-	// cargo-cult what supersonic does
-	if err = m.SetOptionString("audio-display", "no"); err != nil {
-		return
-	}
-	if err = m.SetOptionString("video", "no"); err != nil {
-		return
-	}
-	if err = m.SetOptionString("terminal", "no"); err != nil {
-		return
-	}
-	if err = m.SetOptionString("demuxer-max-bytes", "30MiB"); err != nil {
-		return
-	}
-	if err = m.SetOptionString("audio-client-name", "stmp"); err != nil {
-		return
+	for opt, value := range options {
+		if err = m.SetOptionString(opt, value); err != nil {
+			return
+		}
 	}
 
 	if err = m.Initialize(); err != nil {
 		return
 	}
-
 	player = &Player{
 		instance:          m,
 		mpvEvents:         make(chan *mpv.Event),
@@ -219,7 +212,7 @@ func (p *Player) Pause() (err error) {
 				}
 
 				// mpv will send start file event which also sends the gui event
-				//p.sendGuiDataEvent(EventPlaying, currentSong)
+				// p.sendGuiDataEvent(EventPlaying, currentSong)
 			} else {
 				p.sendGuiDataEvent(EventUnpaused, currentSong)
 			}

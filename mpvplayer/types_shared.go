@@ -3,9 +3,4 @@
 
 package mpvplayer
 
-// StatusData is a player progress report for the UI
-type StatusData struct {
-	Volume   int64
-	Position int64
-	Duration int64
-}
+type StatusUpdate struct{}

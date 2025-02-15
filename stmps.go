@@ -163,8 +163,44 @@ func main() {
 	logger := logger.Init()
 	initCommandHandler(logger)
 
+	// Start with building the base connection so we can figure out if there is any auth dance requiered
+	connection := subsonic.Init(logger)
+	connection.SetClientInfo(clientName, clientVersion)
+	connection.Username = viper.GetString("auth.username")
+	connection.Password = viper.GetString("auth.password")
+	connection.Authentik = viper.GetBool("sso.authentik")
+	connection.ClientId = viper.GetString("sso.clientid")
+	connection.AuthURL = viper.GetString("sso.authurl")
+	connection.Host = viper.GetString("server.host")
+	connection.PlaintextAuth = viper.GetBool("auth.plaintext")
+	connection.Scrobble = viper.GetBool("server.scrobble")
+	connection.RandomSongNumber = viper.GetUint("client.random-songs")
+
+	authHeader, authValue, err := connection.GetAuthToken("Main")
+	if err != nil {
+		fmt.Println("Unable to get authorization token to SSO")
+		osExit(1)
+	}
+	playerOptions := make(map[string]string)
+	if len(authHeader) > 0 && len(authValue) > 0 {
+		playerOptions["http-header-fields"] = authHeader + ": " + authValue
+	}
+	playerOptions["audio-display"] = "no"
+	playerOptions["video"] = "no"
+	playerOptions["terminal"] = "no"
+	playerOptions["demuxer-max-bytes"] = "30MiB"
+	playerOptions["audio-client-name"] = "stmp"
+
+	externalPlayerOptions := viper.Sub("mpv")
+	if externalPlayerOptions != nil {
+		opts := externalPlayerOptions.AllSettings()
+		for opt, value := range opts {
+			playerOptions[opt] = value.(string)
+		}
+	}
+
 	// init mpv engine
-	player, err := mpvplayer.NewPlayer(logger)
+	player, err := mpvplayer.NewPlayer(logger, playerOptions)
 	if err != nil {
 		fmt.Println("Unable to initialize mpv. Is mpv installed?")
 		osExit(1)
@@ -197,18 +233,6 @@ func main() {
 		osExit(0x23420001)
 		return
 	}
-
-	connection := subsonic.Init(logger)
-	connection.SetClientInfo(clientName, clientVersion)
-	connection.Username = viper.GetString("auth.username")
-	connection.Password = viper.GetString("auth.password")
-	connection.Authentik = viper.GetBool("sso.authentik")
-	connection.ClientId = viper.GetString("sso.clientid")
-	connection.AuthURL = viper.GetString("sso.authurl")
-	connection.Host = viper.GetString("server.host")
-	connection.PlaintextAuth = viper.GetBool("auth.plaintext")
-	connection.Scrobble = viper.GetBool("server.scrobble")
-	connection.RandomSongNumber = viper.GetUint("client.random-songs")
 
 	indexResponse, err := connection.GetIndexes()
 	if err != nil {

@@ -1,4 +1,15 @@
-- [ ] Filter special diacretic characters before tview
+- [x] Filter special diacretic characters before tview
+- [x] RTL support - was a terminal issue
+- [x] Fix non english issue - it was terminal fonts
+- [ ] Fix random rtl issue
+- [x] Fix sound crackling issue - it was a WSL issue, restart of WSL was requiered
+- [x] Fix error popping under the tui - it was a WSL mismatch, error came from sound driver mpv uses, direct to pulse fixed it
+- [x] Cache system for UI state, I assume it's being reloaded every time (artist -> album)
 - [ ] Better layout with Grid ?
 - [ ] Better player state, always show what's playing
 - [ ] Integration with os notifications (linux,osx,wsl)
+- [ ] Match system colors
+- [ ] Config keys via conf file
+- [ ] Fix issue where album is not added to queue, usually after queue gets empty
+- [ ] Fix volume control
+- [x] Fix config file location

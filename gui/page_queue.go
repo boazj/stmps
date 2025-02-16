@@ -1,7 +1,7 @@
 // Copyright 2023 The STMPS Authors
 // SPDX-License-Identifier: GPL-3.0-only
 
-package main
+package gui
 
 import (
 	"bytes"
@@ -478,5 +478,5 @@ var songInfoTemplateString = `[blue::b]Title:[-:-:-:-] [green::i]{{.Title}}[-:-:
 [blue::b]Year:[-:-:-:-] [::i]{{.GetYear}}[-:-:-:-]
 `
 
-//go:embed docs/stmps_logo.png
+//go:embed stmps_logo.png
 var _stmps_logo []byte

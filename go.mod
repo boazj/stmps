@@ -41,9 +41,13 @@ require (
 	golang.org/x/exp v0.0.0-20240909161429-701f63a606c0 // indirect
 	golang.org/x/sys v0.25.0 // indirect
 	golang.org/x/term v0.24.0 // indirect
-	golang.org/x/text v0.18.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
+)
+
+require (
+	golang.org/x/image v0.24.0
+	golang.org/x/text v0.22.0
 )
 
 replace github.com/spezifisch/stmps => github.com/boazj/stmps v0.0.0-20241028072421-4a8428bc06cc

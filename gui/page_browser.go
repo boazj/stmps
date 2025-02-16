@@ -1,7 +1,7 @@
 // Copyright 2023 The STMPS Authors
 // SPDX-License-Identifier: GPL-3.0-only
 
-package main
+package gui
 
 import (
 	"sort"
@@ -10,6 +10,7 @@ import (
 	"github.com/rivo/tview"
 	"github.com/spezifisch/stmps/logger"
 	"github.com/spezifisch/stmps/subsonic"
+	"github.com/spezifisch/stmps/utils"
 )
 
 type BrowserPage struct {
@@ -49,7 +50,12 @@ func (ui *Ui) createBrowserPage(indexes *[]subsonic.SubsonicIndex) *BrowserPage 
 
 	for _, index := range *indexes {
 		for _, artist := range index.Artists {
-			browserPage.artistList.AddItem(tview.Escape(artist.Name), "", 0, nil)
+			artistName, err := utils.Normalize(artist.Name)
+			if err != nil {
+				ui.logger.Printf("BrowserPage: Failed to normalize artist name %s", artist.Name)
+			}
+			artistName = tview.Escape(artistName)
+			browserPage.artistList.AddItem(tview.Escape(artistName), "", 0, nil)
 			browserPage.artistIdList = append(browserPage.artistIdList, artist.Id)
 		}
 	}
@@ -131,10 +137,23 @@ func (ui *Ui) createBrowserPage(indexes *[]subsonic.SubsonicIndex) *BrowserPage 
 			// Sort the indexes before adding to the list
 			for _, index := range indexResponse.Indexes.Index {
 				sort.Slice(index.Artists, func(i, j int) bool {
-					return index.Artists[i].Name < index.Artists[j].Name
+					artistI, err := utils.Normalize(index.Artists[i].Name)
+					if err != nil {
+						ui.logger.Printf("BrowserPage: Failed to normalize artist name %s", index.Artists[i].Name)
+					}
+					artistJ, err := utils.Normalize(index.Artists[j].Name)
+					if err != nil {
+						ui.logger.Printf("BrowserPage: Failed to normalize artist name %s", index.Artists[j].Name)
+					}
+
+					return artistI < artistJ
 				})
 				for _, artist := range index.Artists {
-					browserPage.artistList.AddItem(tview.Escape(artist.Name), "", 0, nil)
+					artistName, err := utils.Normalize(artist.Name)
+					if err != nil {
+						ui.logger.Printf("BrowserPage: Failed to normalize artist name %s", artist.Name)
+					}
+					browserPage.artistList.AddItem(tview.Escape(artistName), "", 0, nil)
 					browserPage.artistIdList = append(browserPage.artistIdList, artist.Id)
 				}
 			}
@@ -213,7 +232,7 @@ func (ui *Ui) createBrowserPage(indexes *[]subsonic.SubsonicIndex) *BrowserPage 
 		if event.Rune() == 'R' {
 			artistIdx := browserPage.artistList.GetCurrentItem()
 			entity := browserPage.artistIdList[artistIdx]
-			//ui.logger.Printf("refreshing artist idx %d, entity %s (%s)", artistIdx, entity, ui.connection.directoryCache[entity].Directory.Name)
+			// ui.logger.Printf("refreshing artist idx %d, entity %s (%s)", artistIdx, entity, ui.connection.directoryCache[entity].Directory.Name)
 			ui.connection.RemoveCacheEntry(entity)
 			browserPage.handleEntitySelected(browserPage.artistIdList[artistIdx])
 			return nil
@@ -338,13 +357,13 @@ func (b *BrowserPage) handleEntitySelected(directoryId string) {
 	b.entityList.Clear()
 	if b.currentDirectory.Parent != "" {
 		// has parent entity
-		b.entityList.Box.SetTitle(" song ")
+		b.entityList.Box.SetTitle(" Song ")
 		b.entityList.AddItem(
 			tview.Escape("[..]"), "", 0,
 			b.makeEntityHandler(b.currentDirectory.Parent))
 	} else {
 		// no parent
-		b.entityList.Box.SetTitle(" album ")
+		b.entityList.Box.SetTitle(" Album ")
 	}
 
 	for _, entity := range b.currentDirectory.Entities {
@@ -404,7 +423,11 @@ func (b *BrowserPage) handleToggleEntityStar() {
 }
 
 func entityListTextFormat(entity subsonic.SubsonicEntity, starredItems map[string]struct{}) string {
-	title := entity.Title
+	title, err := utils.Normalize(entity.Title)
+	if err != nil {
+		title = entity.Title
+	}
+
 	if entity.IsDirectory {
 		title = "[" + title + "]"
 	}

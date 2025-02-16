@@ -14,6 +14,7 @@ import (
 	"runtime/pprof"
 
 	"github.com/spezifisch/stmps/consts"
+	"github.com/spezifisch/stmps/gui"
 	"github.com/spezifisch/stmps/logger"
 	"github.com/spezifisch/stmps/mpvplayer"
 	"github.com/spezifisch/stmps/remote"
@@ -36,21 +37,25 @@ func readConfig(configFile *string) error {
 	required_properties := []string{"auth.username", "auth.password", "server.host"}
 
 	if configFile != nil && *configFile != "" {
-		// use custom config file
 		viper.SetConfigFile(*configFile)
 	} else {
-		// lookup default dirs
-		viper.SetConfigName("stmp") // TODO this should be stmps
+		viper.SetConfigName("stmps")
 		viper.SetConfigType("toml")
-		viper.AddConfigPath("$HOME/.config/stmp") // TODO this should be stmps only
 		viper.AddConfigPath("$HOME/.config/stmps")
 		viper.AddConfigPath(".")
 	}
 
-	// read it
 	err := viper.ReadInConfig()
 	if err != nil {
-		return fmt.Errorf("Config file error: %s\n", err)
+		// fallback to old stmp location and name
+		viper.SetConfigName("stmp")
+		viper.AddConfigPath("$HOME/.config/stmp")
+
+		err := viper.ReadInConfig()
+		if err != nil {
+			return fmt.Errorf("Config file error: %s\n", err)
+		}
+		fmt.Fprintf(os.Stderr, "Warning: You are using a deprecated config file path\n")
 	}
 
 	// validate
@@ -287,7 +292,7 @@ func main() {
 		return
 	}
 
-	ui := InitGui(&indexResponse.Indexes.Index,
+	ui := gui.InitGui(&indexResponse.Indexes.Index,
 		connection,
 		player,
 		logger,

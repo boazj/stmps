@@ -1,12 +1,11 @@
 // Copyright 2023 The STMPS Authors
 // SPDX-License-Identifier: GPL-3.0-only
 
-package main
+package gui
 
 import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
-	"github.com/spezifisch/stmps/gui"
 	"github.com/spezifisch/stmps/logger"
 	"github.com/spezifisch/stmps/mpvplayer"
 	"github.com/spezifisch/stmps/remote"
@@ -22,7 +21,7 @@ type Ui struct {
 	// startStopStatus *tview.TextView
 	// playerStatus    *tview.TextView
 
-	topbar *gui.TopBar
+	topbar *TopBar
 
 	// bottom bar
 	menuWidget *MenuWidget
@@ -102,22 +101,6 @@ func InitGui(indexes *[]subsonic.SubsonicIndex,
 	ui.app = tview.NewApplication()
 	ui.pages = tview.NewPages()
 
-	// status text at the top
-	// statusLeft := fmt.Sprintf("[::b]%s[::-] v%s", consts.ClientName, consts.ClientVersion)
-	// ui.startStopStatus = tview.NewTextView().SetText(statusLeft).
-	// 	SetTextAlign(tview.AlignLeft).
-	// 	SetDynamicColors(true).
-	// 	SetScrollable(false)
-	// ui.startStopStatus.SetMouseCapture(func(action tview.MouseAction, event *tcell.EventMouse) (tview.MouseAction, *tcell.EventMouse) {
-	// 	return action, nil
-	// })
-
-	// statusRight := formatPlayerStatus(0, 0, 0)
-	// ui.playerStatus = tview.NewTextView().SetText(statusRight).
-	// 	SetTextAlign(tview.AlignRight).
-	// 	SetDynamicColors(true).
-	// 	SetScrollable(false)
-
 	ui.menuWidget = ui.createMenuWidget()
 	ui.helpWidget = ui.createHelpWidget()
 	ui.selectPlaylistWidget = ui.createPlaylistSelectionWidget()
@@ -150,12 +133,7 @@ func InitGui(indexes *[]subsonic.SubsonicIndex,
 		return event
 	})
 
-	// top bar: status text
-	// topBarFlex := tview.NewFlex().SetDirection(tview.FlexColumn).
-	// 	AddItem(ui.startStopStatus, 0, 1, false).
-	// 	AddItem(ui.playerStatus, 20, 0, false)
-
-	ui.topbar = gui.InitTopBar(logger)
+	ui.topbar = InitTopBar(logger)
 
 	// browser page
 	ui.browserPage = ui.createBrowserPage(indexes)

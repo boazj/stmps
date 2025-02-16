@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"github.com/spezifisch/stmps/logger"
+	webp "golang.org/x/image/webp"
 )
 
 type SubsonicConnection struct {
@@ -450,6 +451,8 @@ func (connection *SubsonicConnection) GetCoverArt(id string) (image.Image, error
 		art, err = jpeg.Decode(bytes.NewReader(responseBody))
 	case "image/gif":
 		art, err = gif.Decode(bytes.NewReader(responseBody))
+	case "image/webp":
+		art, err = webp.Decode(bytes.NewReader(responseBody))
 	default:
 		connection.coverArts[id] = nil
 		return nil, fmt.Errorf("[%s] unhandled image type %s: %v", caller, res.Header["Content-Type"][0], err)

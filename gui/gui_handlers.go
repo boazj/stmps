@@ -1,7 +1,7 @@
 // Copyright 2023 The STMPS Authors
 // SPDX-License-Identifier: GPL-3.0-only
 
-package main
+package gui
 
 import (
 	"log"
@@ -9,6 +9,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/spezifisch/stmps/mpvplayer"
 	"github.com/spezifisch/stmps/subsonic"
+	"github.com/spezifisch/stmps/utils"
 )
 
 func (ui *Ui) handlePageInput(event *tcell.EventKey) *tcell.EventKey {
@@ -201,7 +202,7 @@ func makeSongHandler(entity *subsonic.SubsonicEntity, ui *Ui, fallbackArtist str
 	// TODO: Why aren't we doing all of this _inside_ the returned func?
 	uri := ui.connection.GetPlayUrl(entity)
 	title := entity.Title
-	artist := stringOr(entity.Artist, fallbackArtist)
+	artist := utils.StringOr(entity.Artist, fallbackArtist)
 	duration := entity.Duration
 	track := entity.Track
 	coverArtId := entity.CoverArtId

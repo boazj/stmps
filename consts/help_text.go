@@ -1,9 +1,9 @@
 // Copyright 2023 The STMPS Authors
 // SPDX-License-Identifier: GPL-3.0-only
 
-package main
+package consts
 
-const helpPlayback = `
+const HelpPlayback = `
 p      play/pause
 P      stop
 >      next song
@@ -13,7 +13,7 @@ r      add 50 random songs to queue
 s      start server library scan
 `
 
-const helpPageBrowser = `
+const HelpPageBrowser = `
 artist tab
   R     refresh the list
   /     Search artists
@@ -29,7 +29,7 @@ song tab
 ESC   Close search
 `
 
-const helpPageQueue = `
+const HelpPageQueue = `
 d/DEL remove currently selected song from the queue
 D     remove all songs from queue
 y     toggle star on song
@@ -40,13 +40,13 @@ S     shuffle the current queue
 l     load last queue from server
 `
 
-const helpPagePlaylists = `
+const HelpPagePlaylists = `
 n     new playlist
 d     delete playlist
 a     add playlist or song to queue
 `
 
-const helpSearchPage = `
+const HelpSearchPage = `
 artist, album, or song column
   Down/Up navigate within the column
   Left    previous column

@@ -1,12 +1,13 @@
 // Copyright 2023 The STMPS Authors
 // SPDX-License-Identifier: GPL-3.0-only
 
-package main
+package gui
 
 import (
 	"strings"
 
 	"github.com/rivo/tview"
+	"github.com/spezifisch/stmps/consts"
 )
 
 type HelpWidget struct {
@@ -47,22 +48,22 @@ func (ui *Ui) createHelpWidget() (m *HelpWidget) {
 }
 
 func (h *HelpWidget) RenderHelp(context string) {
-	leftText := "[::b]Playback[::-]\n" + tview.Escape(strings.TrimSpace(helpPlayback))
+	leftText := "[::b]Playback[::-]\n" + tview.Escape(strings.TrimSpace(consts.HelpPlayback))
 	h.leftColumn.SetText(leftText)
 
 	rightText := ""
 	switch context {
 	case PageBrowser:
-		rightText = "[::b]Browser[::-]\n" + tview.Escape(strings.TrimSpace(helpPageBrowser))
+		rightText = "[::b]Browser[::-]\n" + tview.Escape(strings.TrimSpace(consts.HelpPageBrowser))
 
 	case PageQueue:
-		rightText = "[::b]Queue[::-]\n" + tview.Escape(strings.TrimSpace(helpPageQueue))
+		rightText = "[::b]Queue[::-]\n" + tview.Escape(strings.TrimSpace(consts.HelpPageQueue))
 
 	case PagePlaylists:
-		rightText = "[::b]Playlists[::-]\n" + tview.Escape(strings.TrimSpace(helpPagePlaylists))
+		rightText = "[::b]Playlists[::-]\n" + tview.Escape(strings.TrimSpace(consts.HelpPagePlaylists))
 
 	case PageSearch:
-		rightText = "[::b]Search[::-]\n" + tview.Escape(strings.TrimSpace(helpSearchPage))
+		rightText = "[::b]Search[::-]\n" + tview.Escape(strings.TrimSpace(consts.HelpSearchPage))
 
 	case PageLog:
 		fallthrough

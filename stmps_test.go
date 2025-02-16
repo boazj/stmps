@@ -15,8 +15,9 @@ import (
 
 // Test initialization of the player
 func TestPlayerInitialization(t *testing.T) {
+	playerOptions := make(map[string]string)
 	logger := logger.Init()
-	player, err := mpvplayer.NewPlayer(logger)
+	player, err := mpvplayer.NewPlayer(logger, playerOptions)
 	assert.NoError(t, err, "Player initialization should not return an error")
 	assert.NotNil(t, player, "Player should be initialized")
 }

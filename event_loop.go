@@ -65,86 +65,75 @@ func (ui *Ui) guiEventLoop() {
 				position := ui.player.State.Position
 				duration := ui.player.State.Duration
 				ui.app.QueueUpdateDraw(func() {
-					ui.playerStatus.SetText(formatPlayerStatus(volume, position, duration))
+					ui.topbar.SetPlayerState(volume, position, duration)
 				})
 
 			case mpvplayer.EventStopped:
 				ui.logger.Print("mpvEvent: stopped")
 				ui.app.QueueUpdateDraw(func() {
-					ui.startStopStatus.SetText("[red::b]Stopped[::-]")
+					ui.topbar.SetActivityStop()
 					ui.queuePage.UpdateQueue()
 				})
 
-			case mpvplayer.EventPlaying:
+			case mpvplayer.EventPlaying, mpvplayer.EventUnpaused:
+				// TODO: verify this means "starting to play" and not simply playing
+				// this is relevant for starting to overall play but also song change
 				ui.logger.Print("mpvEvent: playing")
-				statusText := "[green::b]Playing[::-]"
 
-				var currentSong mpvplayer.QueueItem
-				if mpvEvent.Data != nil {
-					currentSong = mpvEvent.Data.(mpvplayer.QueueItem) // TODO is this safe to access? maybe we need a copy
-					statusText += formatSongForStatusBar(&currentSong)
+				currentSong, err := ui.player.GetPlayingTrack()
+				if err == nil {
+					// currentSong = mpvEvent.Data.(mpvplayer.QueueItem) // TODO is this safe to access? maybe we need a copy
+					// TODO: the data passed on the event should be the relevant details not the whole entity
 
-					// Update MprisPlayer with new track info
-					if ui.mprisPlayer != nil {
-						ui.mprisPlayer.OnSongChange(currentSong)
-					}
+					if mpvEvent.Type == mpvplayer.EventPlaying {
+						// Update MprisPlayer with new track info
+						if ui.mprisPlayer != nil {
+							ui.mprisPlayer.OnSongChange(currentSong)
+						}
 
-					if ui.connection.Scrobble {
-						// scrobble "now playing" event (delegate to background event loop)
-						ui.eventLoop.scrobbleNowPlaying <- currentSong.Id
+						if ui.connection.Scrobble {
+							// TODO: move outside of eventloop, scrobble shouldn't effect player performance and processing loop
 
-						// scrobble "submission" after song has been playing a bit
-						// see: https://www.last.fm/api/scrobbling
-						// A track should only be scrobbled when the following conditions have been met:
-						// The track must be longer than 30 seconds. And the track has been played for
-						// at least half its duration, or for 4 minutes (whichever occurs earlier.)
-						if currentSong.Duration > 30 {
-							scrobbleDelay := currentSong.Duration / 2
-							if scrobbleDelay > 240 {
-								scrobbleDelay = 240
+							// scrobble "now playing" event (delegate to background event loop)
+							ui.eventLoop.scrobbleNowPlaying <- currentSong.Id
+
+							// scrobble "submission" after song has been playing a bit
+							// see: https://www.last.fm/api/scrobbling
+							// A track should only be scrobbled when the following conditions have been met:
+							// The track must be longer than 30 seconds. And the track has been played for
+							// at least half its duration, or for 4 minutes (whichever occurs earlier.)
+							if currentSong.Duration > 30 {
+								scrobbleDelay := currentSong.Duration / 2
+								if scrobbleDelay > 240 {
+									scrobbleDelay = 240
+								}
+								scrobbleDuration := time.Duration(scrobbleDelay) * time.Second
+
+								ui.eventLoop.scrobbleSubmissionTimer.Reset(scrobbleDuration)
+								ui.logger.Printf("scrobbler: timer started, %v", scrobbleDuration)
+							} else {
+								ui.logger.Printf("scrobbler: track too short")
 							}
-							scrobbleDuration := time.Duration(scrobbleDelay) * time.Second
-
-							ui.eventLoop.scrobbleSubmissionTimer.Reset(scrobbleDuration)
-							ui.logger.Printf("scrobbler: timer started, %v", scrobbleDuration)
-						} else {
-							ui.logger.Printf("scrobbler: track too short")
 						}
 					}
+					ui.app.QueueUpdateDraw(func() {
+						ui.topbar.SetActivityPlaying(currentSong.Artist, currentSong.Title)
+						ui.queuePage.UpdateQueue()
+					})
 				}
-
-				ui.app.QueueUpdateDraw(func() {
-					ui.startStopStatus.SetText(statusText)
-					ui.queuePage.UpdateQueue()
-				})
 
 			case mpvplayer.EventPaused:
 				ui.logger.Print("mpvEvent: paused")
-				statusText := "[yellow::b]Paused[::-]"
 
-				var currentSong mpvplayer.QueueItem
-				if mpvEvent.Data != nil {
-					currentSong = mpvEvent.Data.(mpvplayer.QueueItem) // TODO is this safe to access? maybe we need a copy
-					statusText += formatSongForStatusBar(&currentSong)
+				currentSong, err := ui.player.GetPlayingTrack()
+				if err == nil {
+					// currentSong = mpvEvent.Data.(mpvplayer.QueueItem) // TODO is this safe to access? maybe we need a copy
+					// TODO: the data passed on the event should be the relevant details not the whole entity
+
+					ui.app.QueueUpdateDraw(func() {
+						ui.topbar.SetActivityPause(currentSong.Artist, currentSong.Title)
+					})
 				}
-
-				ui.app.QueueUpdateDraw(func() {
-					ui.startStopStatus.SetText(statusText)
-				})
-
-			case mpvplayer.EventUnpaused:
-				ui.logger.Print("mpvEvent: unpaused")
-				statusText := "[green::b]Playing[::-]"
-
-				var currentSong mpvplayer.QueueItem
-				if mpvEvent.Data != nil {
-					currentSong = mpvEvent.Data.(mpvplayer.QueueItem) // TODO is this safe to access? maybe we need a copy
-					statusText += formatSongForStatusBar(&currentSong)
-				}
-
-				ui.app.QueueUpdateDraw(func() {
-					ui.startStopStatus.SetText(statusText)
-				})
 
 			default:
 				ui.logger.Printf("guiEventLoop: unhandled mpvEvent %v", mpvEvent)

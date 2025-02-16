@@ -13,6 +13,7 @@ import (
 	"runtime/debug"
 	"runtime/pprof"
 
+	"github.com/spezifisch/stmps/consts"
 	"github.com/spezifisch/stmps/logger"
 	"github.com/spezifisch/stmps/mpvplayer"
 	"github.com/spezifisch/stmps/remote"
@@ -162,10 +163,12 @@ func main() {
 
 	logger := logger.Init()
 	initCommandHandler(logger)
+	// TODO: client name and client version are correct but confusing, should be app version and they should be available
+	// via a general, static, base application class
 
 	// Start with building the base connection so we can figure out if there is any auth dance requiered
 	connection := subsonic.Init(logger)
-	connection.SetClientInfo(clientName, clientVersion)
+	connection.SetClientInfo(consts.ClientName, consts.ClientVersion)
 	connection.Username = viper.GetString("auth.username")
 	connection.Password = viper.GetString("auth.password")
 	connection.Authentik = viper.GetBool("sso.authentik")
@@ -191,6 +194,8 @@ func main() {
 	playerOptions["demuxer-max-bytes"] = "30MiB"
 	playerOptions["audio-client-name"] = "stmp"
 
+	// Loads additional options from conf file, see options in the link below
+	// https://github.com/mpv-player/mpv/blob/master/DOCS/man/options.rst
 	externalPlayerOptions := viper.Sub("mpv")
 	if externalPlayerOptions != nil {
 		opts := externalPlayerOptions.AllSettings()

@@ -19,13 +19,13 @@ type PropertyEvent struct {
 }
 
 func (p *Player) EventLoop() {
-	if err := p.instance.ObserveProperty(0, "playback-time", mpv.FORMAT_INT64); err != nil {
+	if err := p.instance.ObserveProperty(0, string(PlaybackTime), mpv.FORMAT_INT64); err != nil {
 		p.logger.PrintError("Observe1", err)
 	}
-	if err := p.instance.ObserveProperty(0, "duration", mpv.FORMAT_INT64); err != nil {
+	if err := p.instance.ObserveProperty(0, string(Duration), mpv.FORMAT_INT64); err != nil {
 		p.logger.PrintError("Observe2", err)
 	}
-	if err := p.instance.ObserveProperty(0, "volume", mpv.FORMAT_INT64); err != nil {
+	if err := p.instance.ObserveProperty(0, string(Volume), mpv.FORMAT_INT64); err != nil {
 		p.logger.PrintError("Observe3", err)
 	}
 
@@ -39,29 +39,20 @@ func (p *Player) EventLoop() {
 				continue
 			}
 			propChangeEvent := (*C.struct_mpv_event_property)(evt.Data)
-			name := C.GoString((*C.char)(propChangeEvent.name))
+			name := Property(C.GoString((*C.char)(propChangeEvent.name)))
 
 			if mpv.Format(propChangeEvent.format) == mpv.FORMAT_NONE {
 				continue
 			}
-			if name == "playback-time" {
-				position, err := p.getPropertyInt64("playback-time")
-				if err != nil {
-					p.logger.Printf("mpv.EventLoop (%s): GetProperty %s -- %s", evt.Event_Id.String(), "playback-time", err.Error())
-				}
+			if name == PlaybackTime {
+				position := p.getPlayerStateProperty(evt.Event_Id, PlaybackTime)
 				p.State.Position = position
 				p.remoteState.timePos = float64(position)
-			} else if name == "duration" {
-				duration, err := p.getPropertyInt64("duration")
-				if err != nil {
-					p.logger.Printf("mpv.EventLoop (%s): GetProperty %s -- %s", evt.Event_Id.String(), "duration", err.Error())
-				}
+			} else if name == Duration {
+				duration := p.getPlayerStateProperty(evt.Event_Id, Duration)
 				p.State.Duration = duration
-			} else if name == "volume" {
-				volume, err := p.getPropertyInt64("volume")
-				if err != nil {
-					p.logger.Printf("mpv.EventLoop (%s): GetProperty %s -- %s", evt.Event_Id.String(), "volume", err.Error())
-				}
+			} else if name == Volume {
+				volume := p.getPlayerStateProperty(evt.Event_Id, Volume)
 				p.State.Volume = volume
 			}
 			p.sendGuiDataEvent(EventStatus, StatusUpdate{})

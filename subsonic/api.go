@@ -417,24 +417,29 @@ func (connection *SubsonicConnection) GetCoverArt(id string) (image.Image, error
 	req, err := connection.baseRequest("GetCoverArt", http.MethodGet, requestUrl, nil)
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
+		connection.coverArts[id] = nil
 		return nil, fmt.Errorf("[%s] failed to make GET request: %v", caller, err)
 	}
 
 	if res.Body != nil {
 		defer res.Body.Close()
 	} else {
+		connection.coverArts[id] = nil
 		return nil, fmt.Errorf("[%s] response body is nil", caller)
 	}
 
 	if res.StatusCode != http.StatusOK {
+		connection.coverArts[id] = nil
 		return nil, fmt.Errorf("[%s] unexpected status code: %d, status: %s", caller, res.StatusCode, res.Status)
 	}
 
 	if len(res.Header["Content-Type"]) == 0 {
+		connection.coverArts[id] = nil
 		return nil, fmt.Errorf("[%s] unknown image type (no content-type from server)", caller)
 	}
 	responseBody, err := io.ReadAll(res.Body)
 	if err != nil {
+		connection.coverArts[id] = nil
 		return nil, fmt.Errorf("[%s] failed to read response body: %v", caller, err)
 	}
 	var art image.Image
@@ -446,6 +451,7 @@ func (connection *SubsonicConnection) GetCoverArt(id string) (image.Image, error
 	case "image/gif":
 		art, err = gif.Decode(bytes.NewReader(responseBody))
 	default:
+		connection.coverArts[id] = nil
 		return nil, fmt.Errorf("[%s] unhandled image type %s: %v", caller, res.Header["Content-Type"][0], err)
 	}
 	if art != nil {

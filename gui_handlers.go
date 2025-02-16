@@ -67,7 +67,7 @@ func (ui *Ui) handlePageInput(event *tcell.EventKey) *tcell.EventKey {
 	case 'X':
 		// debug stuff
 		ui.logger.Print("test")
-		//ui.player.Test()
+		// ui.player.Test()
 		ui.showMessageBox("foo bar")
 
 	case '-':

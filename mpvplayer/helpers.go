@@ -9,8 +9,16 @@ import (
 	"github.com/supersonic-app/go-mpv"
 )
 
-func (p *Player) getPropertyInt64(name string) (int64, error) {
-	value, err := p.instance.GetProperty(name, mpv.FORMAT_INT64)
+func (p *Player) getPlayerStateProperty(eid mpv.EventId, prop Property) int64 {
+	value, err := p.getPropertyInt64(prop)
+	if err != nil {
+		p.logger.Printf("mpv.EventLoop (%s): GetProperty %s -- %s", eid, prop, err)
+	}
+	return value
+}
+
+func (p *Player) getPropertyInt64(name Property) (int64, error) {
+	value, err := p.instance.GetProperty(string(name), mpv.FORMAT_INT64)
 	if err != nil {
 		return 0, err
 	} else if value == nil {
@@ -19,8 +27,8 @@ func (p *Player) getPropertyInt64(name string) (int64, error) {
 	return value.(int64), err
 }
 
-func (p *Player) getPropertyBool(name string) (bool, error) {
-	value, err := p.instance.GetProperty(name, mpv.FORMAT_FLAG)
+func (p *Player) getPropertyBool(name Property) (bool, error) {
+	value, err := p.instance.GetProperty(string(name), mpv.FORMAT_FLAG)
 	if err != nil {
 		return false, err
 	} else if value == nil {

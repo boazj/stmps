@@ -140,18 +140,18 @@ func (p *Player) temporaryStop() error {
 }
 
 func (p *Player) IsSongLoaded() (bool, error) {
-	idle, err := p.getPropertyBool("idle-active")
+	idle, err := p.getPropertyBool(IdleActive)
 	return !idle, err
 }
 
 func (p *Player) IsPaused() (bool, error) {
-	pause, err := p.getPropertyBool("pause")
+	pause, err := p.getPropertyBool(Pause)
 	return pause, err
 }
 
 func (p *Player) IsPlaying() (playing bool, err error) {
-	if idle, err := p.getPropertyBool("idle-active"); err != nil {
-	} else if paused, err := p.getPropertyBool("pause"); err != nil {
+	if idle, err := p.getPropertyBool(IdleActive); err != nil {
+	} else if paused, err := p.getPropertyBool(Pause); err != nil {
 	} else {
 		playing = !idle && !paused
 	}
@@ -159,7 +159,7 @@ func (p *Player) IsPlaying() (playing bool, err error) {
 }
 
 func (p *Player) Test() {
-	res, err := p.getPropertyBool("idle-active")
+	res, err := p.getPropertyBool(IdleActive)
 	p.logger.Printf("res %v err %v", res, err)
 }
 
@@ -232,11 +232,11 @@ func (p *Player) SetVolume(percentValue int) error {
 		percentValue = 0
 	}
 
-	return p.instance.SetProperty("volume", mpv.FORMAT_INT64, percentValue)
+	return p.instance.SetProperty(string(Volume), mpv.FORMAT_INT64, percentValue)
 }
 
 func (p *Player) AdjustVolume(increment int) error {
-	volume, err := p.getPropertyInt64("volume")
+	volume, err := p.getPropertyInt64(Volume)
 	if err != nil {
 		return err
 	}

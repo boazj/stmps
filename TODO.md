@@ -1,0 +1,4 @@
+- [ ] Filter special diacretic characters before tview
+- [ ] Better layout with Grid ?
+- [ ] Better player state, always show what's playing
+- [ ] Integration with os notifications (linux,osx,wsl)

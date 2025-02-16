@@ -19,13 +19,16 @@ import (
 	"github.com/spezifisch/stmps/logger"
 	"github.com/spezifisch/stmps/mpvplayer"
 	"github.com/spezifisch/stmps/subsonic"
+	"github.com/spezifisch/stmps/utils"
 )
 
 // TODO show total # of entries somewhere (top?)
 
 // columns: star, title, artist, duration
-const queueDataColumns = 4
-const starIcon = "♥"
+const (
+	queueDataColumns = 4
+	starIcon         = "♥"
+)
 
 // data for rendering queue table
 type queueData struct {
@@ -45,8 +48,9 @@ type QueuePage struct {
 	queueList *tview.Table
 	queueData queueData
 
-	songInfo *tview.TextView
-	coverArt *tview.Image
+	songInfo   *tview.TextView
+	coverArt   *tview.Image
+	currentArt image.Image
 
 	// external refs
 	ui     *Ui
@@ -81,6 +85,7 @@ func (ui *Ui) createQueuePage() *QueuePage {
 		ui:               ui,
 		logger:           ui.logger,
 		songInfoTemplate: songInfoTemplate,
+		currentArt:       STMPS_LOGO,
 	}
 
 	// main table
@@ -179,21 +184,21 @@ func (q *QueuePage) changeSelection(row, column int) {
 		q.coverArt.SetImage(STMPS_LOGO)
 		return
 	}
-	currentSong := q.queueData.playerQueue[row]
+	highlightedTrack := q.queueData.playerQueue[row]
 	art := STMPS_LOGO
-	if currentSong.CoverArtId != "" {
-		if nart, err := q.ui.connection.GetCoverArt(currentSong.CoverArtId); err == nil {
+	if highlightedTrack.CoverArtId != "" {
+		if nart, err := q.ui.connection.GetCoverArt(highlightedTrack.CoverArtId); err == nil {
 			if nart != nil {
 				art = nart
-			} else {
-				q.logger.Printf("%q cover art %s was unexpectedly nil", currentSong.Title, currentSong.CoverArtId)
 			}
 		} else {
-			q.logger.Printf("error fetching cover art for %s: %v", currentSong.Title, err)
+			q.logger.Printf("error fetching cover art for %s: %v", highlightedTrack.Title, err)
 		}
 	}
-	q.coverArt.SetImage(art)
-	_ = q.songInfoTemplate.Execute(q.songInfo, currentSong)
+	if q.currentArt != art {
+		q.coverArt.SetImage(art)
+	}
+	_ = q.songInfoTemplate.Execute(q.songInfo, highlightedTrack)
 }
 
 func (q *QueuePage) UpdateQueue() {
@@ -442,7 +447,7 @@ func (q *queueData) GetCell(row, column int) *tview.TableCell {
 			Transparent: true,
 		}
 	case 3: // duration
-		min, sec := iSecondsToMinAndSec(song.Duration)
+		min, sec := utils.IntSecondsToMinAndSec(song.Duration)
 		text := fmt.Sprintf("%3d:%02d", min, sec)
 		return &tview.TableCell{
 			Text:        text,

@@ -4,10 +4,9 @@
 package main
 
 import (
-	"fmt"
-
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
+	"github.com/spezifisch/stmps/gui"
 	"github.com/spezifisch/stmps/logger"
 	"github.com/spezifisch/stmps/mpvplayer"
 	"github.com/spezifisch/stmps/remote"
@@ -20,8 +19,10 @@ type Ui struct {
 	pages *tview.Pages
 
 	// top bar
-	startStopStatus *tview.TextView
-	playerStatus    *tview.TextView
+	// startStopStatus *tview.TextView
+	// playerStatus    *tview.TextView
+
+	topbar *gui.TopBar
 
 	// bottom bar
 	menuWidget *MenuWidget
@@ -63,11 +64,11 @@ type Ui struct {
 
 const (
 	// page identifiers (use these instead of hardcoding page names for showing/hiding)
-	PageBrowser   = "browser"
-	PageQueue     = "queue"
-	PagePlaylists = "playlists"
-	PageSearch    = "search"
-	PageLog       = "log"
+	PageBrowser   = "Browser"
+	PageQueue     = "Queue"
+	PagePlaylists = "Playlists"
+	PageSearch    = "Search"
+	PageLog       = "Log"
 
 	PageDeletePlaylist = "deletePlaylist"
 	PageNewPlaylist    = "newPlaylist"
@@ -81,7 +82,8 @@ func InitGui(indexes *[]subsonic.SubsonicIndex,
 	connection *subsonic.SubsonicConnection,
 	player *mpvplayer.Player,
 	logger *logger.Logger,
-	mprisPlayer *remote.MprisPlayer) (ui *Ui) {
+	mprisPlayer *remote.MprisPlayer,
+) (ui *Ui) {
 	ui = &Ui{
 		starIdList: map[string]struct{}{},
 
@@ -101,20 +103,20 @@ func InitGui(indexes *[]subsonic.SubsonicIndex,
 	ui.pages = tview.NewPages()
 
 	// status text at the top
-	statusLeft := fmt.Sprintf("[::b]%s[::-] v%s", clientName, clientVersion)
-	ui.startStopStatus = tview.NewTextView().SetText(statusLeft).
-		SetTextAlign(tview.AlignLeft).
-		SetDynamicColors(true).
-		SetScrollable(false)
-	ui.startStopStatus.SetMouseCapture(func(action tview.MouseAction, event *tcell.EventMouse) (tview.MouseAction, *tcell.EventMouse) {
-		return action, nil
-	})
+	// statusLeft := fmt.Sprintf("[::b]%s[::-] v%s", consts.ClientName, consts.ClientVersion)
+	// ui.startStopStatus = tview.NewTextView().SetText(statusLeft).
+	// 	SetTextAlign(tview.AlignLeft).
+	// 	SetDynamicColors(true).
+	// 	SetScrollable(false)
+	// ui.startStopStatus.SetMouseCapture(func(action tview.MouseAction, event *tcell.EventMouse) (tview.MouseAction, *tcell.EventMouse) {
+	// 	return action, nil
+	// })
 
-	statusRight := formatPlayerStatus(0, 0, 0)
-	ui.playerStatus = tview.NewTextView().SetText(statusRight).
-		SetTextAlign(tview.AlignRight).
-		SetDynamicColors(true).
-		SetScrollable(false)
+	// statusRight := formatPlayerStatus(0, 0, 0)
+	// ui.playerStatus = tview.NewTextView().SetText(statusRight).
+	// 	SetTextAlign(tview.AlignRight).
+	// 	SetDynamicColors(true).
+	// 	SetScrollable(false)
 
 	ui.menuWidget = ui.createMenuWidget()
 	ui.helpWidget = ui.createHelpWidget()
@@ -149,9 +151,11 @@ func InitGui(indexes *[]subsonic.SubsonicIndex,
 	})
 
 	// top bar: status text
-	topBarFlex := tview.NewFlex().SetDirection(tview.FlexColumn).
-		AddItem(ui.startStopStatus, 0, 1, false).
-		AddItem(ui.playerStatus, 20, 0, false)
+	// topBarFlex := tview.NewFlex().SetDirection(tview.FlexColumn).
+	// 	AddItem(ui.startStopStatus, 0, 1, false).
+	// 	AddItem(ui.playerStatus, 20, 0, false)
+
+	ui.topbar = gui.InitTopBar(logger)
 
 	// browser page
 	ui.browserPage = ui.createBrowserPage(indexes)
@@ -182,7 +186,7 @@ func InitGui(indexes *[]subsonic.SubsonicIndex,
 
 	rootFlex := tview.NewFlex().
 		SetDirection(tview.FlexRow).
-		AddItem(topBarFlex, 1, 0, false).
+		AddItem(ui.topbar.Row, 1, 0, false).
 		AddItem(ui.pages, 0, 1, true).
 		AddItem(ui.menuWidget.Root, 1, 0, false)
 

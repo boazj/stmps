@@ -8,7 +8,7 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/spezifisch/stmps/mpvplayer"
-	"github.com/spezifisch/stmps/subsonic"
+	"github.com/spezifisch/stmps/service"
 	"github.com/spezifisch/stmps/utils"
 )
 
@@ -54,57 +54,57 @@ func (ui *Ui) handlePageInput(event *tcell.EventKey) *tcell.EventKey {
 		// toggle playing/pause
 		err := ui.player.Pause()
 		if err != nil {
-			ui.logger.PrintError("handlePageInput: Pause", err)
+			ui.logger.Error("handlePageInput: Pause", err)
 		}
 
 	case 'P':
 		// stop playing without changes to queue
-		ui.logger.Print("key stop")
+		ui.logger.Info("key stop")
 		err := ui.player.Stop()
 		if err != nil {
-			ui.logger.PrintError("handlePageInput: Stop", err)
+			ui.logger.Error("handlePageInput: Stop", err)
 		}
 
 	case 'X':
 		// debug stuff
-		ui.logger.Print("test")
+		ui.logger.Info("test")
 		// ui.player.Test()
 		ui.showMessageBox("foo bar")
 
 	case '-':
 		// volume-
 		if err := ui.player.AdjustVolume(-5); err != nil {
-			ui.logger.PrintError("handlePageInput: AdjustVolume-", err)
+			ui.logger.Error("handlePageInput: AdjustVolume-", err)
 		}
 
 	case '+', '=':
 		// volume+
 		if err := ui.player.AdjustVolume(5); err != nil {
-			ui.logger.PrintError("handlePageInput: AdjustVolume+", err)
+			ui.logger.Error("handlePageInput: AdjustVolume+", err)
 		}
 
 	case '.':
 		// <<
 		if err := ui.player.Seek(10); err != nil {
-			ui.logger.PrintError("handlePageInput: Seek+", err)
+			ui.logger.Error("handlePageInput: Seek+", err)
 		}
 
 	case ',':
 		// >>
 		if err := ui.player.Seek(-10); err != nil {
-			ui.logger.PrintError("handlePageInput: Seek-", err)
+			ui.logger.Error("handlePageInput: Seek-", err)
 		}
 
 	case '>':
 		// skip to next track
 		if err := ui.player.PlayNextTrack(); err != nil {
-			ui.logger.PrintError("handlePageInput: Next", err)
+			ui.logger.Error("handlePageInput: Next", err)
 		}
 		ui.queuePage.UpdateQueue()
 
 	case 's':
 		if err := ui.connection.StartScan(); err != nil {
-			ui.logger.PrintError("startScan:", err)
+			ui.logger.Error("startScan:", err)
 		}
 
 	default:
@@ -149,7 +149,7 @@ func (ui *Ui) handleAddRandomSongs(Id string, randomType string) {
 func (ui *Ui) addRandomSongsToQueue(Id string, randomType string) {
 	response, err := ui.connection.GetRandomSongs(Id, randomType)
 	if err != nil {
-		ui.logger.Printf("addRandomSongsToQueue %s", err.Error())
+		ui.logger.Error("addRandomSongsToQueue %s", err)
 	}
 	switch randomType {
 	case "random":
@@ -164,13 +164,13 @@ func (ui *Ui) addRandomSongsToQueue(Id string, randomType string) {
 }
 
 // make sure to call ui.QueuePage.UpdateQueue() after this
-func (ui *Ui) addSongToQueue(entity *subsonic.SubsonicEntity) {
+func (ui *Ui) addSongToQueue(entity *service.SubsonicEntity) {
 	uri := ui.connection.GetPlayUrl(entity)
 
 	response, err := ui.connection.GetAlbum(entity.Parent)
 	album := ""
 	if err != nil {
-		ui.logger.PrintError("addSongToQueue", err)
+		ui.logger.Error("addSongToQueue", err)
 	} else {
 		switch {
 		case response.Album.Name != "":
@@ -196,7 +196,7 @@ func (ui *Ui) addSongToQueue(entity *subsonic.SubsonicEntity) {
 	ui.player.AddToQueue(queueItem)
 }
 
-func makeSongHandler(entity *subsonic.SubsonicEntity, ui *Ui, fallbackArtist string) func() {
+func makeSongHandler(entity *service.SubsonicEntity, ui *Ui, fallbackArtist string) func() {
 	// make copy of values so this function can be used inside a loop iterating over entities
 	id := entity.Id
 	// TODO: Why aren't we doing all of this _inside_ the returned func?
@@ -211,7 +211,7 @@ func makeSongHandler(entity *subsonic.SubsonicEntity, ui *Ui, fallbackArtist str
 	response, err := ui.connection.GetAlbum(entity.Parent)
 	album := ""
 	if err != nil {
-		ui.logger.PrintError("makeSongHandler", err)
+		ui.logger.Error("makeSongHandler", err)
 	} else {
 		switch {
 		case response.Album.Name != "":
@@ -225,7 +225,7 @@ func makeSongHandler(entity *subsonic.SubsonicEntity, ui *Ui, fallbackArtist str
 
 	return func() {
 		if err := ui.player.PlayUri(id, uri, title, artist, album, duration, track, disc, coverArtId); err != nil {
-			ui.logger.PrintError("SongHandler Play", err)
+			ui.logger.Error("SongHandler Play", err)
 			return
 		}
 		ui.queuePage.UpdateQueue()

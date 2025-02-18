@@ -6,6 +6,7 @@ package gui
 import (
 	"time"
 
+	"github.com/spezifisch/stmps/logger"
 	"github.com/spezifisch/stmps/mpvplayer"
 )
 
@@ -48,7 +49,7 @@ func (ui *Ui) guiEventLoop() {
 			// ui.logger.Printf("guiEventLoop: %f events per second", events/10.0)
 			events = 0
 
-		case msg := <-ui.logger.Prints:
+		case msg := <-ui.logger.(*logger.LoggerImpl).Output: // TODO: probably should have something better here
 			// handle log page output
 			ui.logPage.Print(msg)
 
@@ -69,7 +70,7 @@ func (ui *Ui) guiEventLoop() {
 				})
 
 			case mpvplayer.EventStopped:
-				ui.logger.Print("mpvEvent: stopped")
+				ui.logger.Info("mpvEvent: stopped")
 				ui.app.QueueUpdateDraw(func() {
 					ui.topbar.SetActivityStop()
 					ui.queuePage.UpdateQueue()
@@ -78,7 +79,7 @@ func (ui *Ui) guiEventLoop() {
 			case mpvplayer.EventPlaying, mpvplayer.EventUnpaused:
 				// TODO: verify this means "starting to play" and not simply playing
 				// this is relevant for starting to overall play but also song change
-				ui.logger.Print("mpvEvent: playing")
+				ui.logger.Info("mpvEvent: playing")
 
 				currentSong, err := ui.player.GetPlayingTrack()
 				if err == nil {
@@ -110,9 +111,9 @@ func (ui *Ui) guiEventLoop() {
 								scrobbleDuration := time.Duration(scrobbleDelay) * time.Second
 
 								ui.eventLoop.scrobbleSubmissionTimer.Reset(scrobbleDuration)
-								ui.logger.Printf("scrobbler: timer started, %v", scrobbleDuration)
+								ui.logger.Debug("scrobbler: timer started, %v", scrobbleDuration)
 							} else {
-								ui.logger.Printf("scrobbler: track too short")
+								ui.logger.Debug("scrobbler: track too short")
 							}
 						}
 					}
@@ -123,7 +124,7 @@ func (ui *Ui) guiEventLoop() {
 				}
 
 			case mpvplayer.EventPaused:
-				ui.logger.Print("mpvEvent: paused")
+				ui.logger.Info("mpvEvent: paused")
 
 				currentSong, err := ui.player.GetPlayingTrack()
 				if err == nil {
@@ -136,7 +137,7 @@ func (ui *Ui) guiEventLoop() {
 				}
 
 			default:
-				ui.logger.Printf("guiEventLoop: unhandled mpvEvent %v", mpvEvent)
+				ui.logger.Warn("guiEventLoop: unhandled mpvEvent %v", mpvEvent)
 			}
 		}
 	}
@@ -149,19 +150,19 @@ func (ui *Ui) backgroundEventLoop() {
 		case songId := <-ui.eventLoop.scrobbleNowPlaying:
 			// scrobble now playing
 			if _, err := ui.connection.ScrobbleSubmission(songId, false); err != nil {
-				ui.logger.PrintError("scrobble nowplaying", err)
+				ui.logger.Error("scrobble nowplaying", err)
 			}
 
 		case <-ui.eventLoop.scrobbleSubmissionTimer.C:
 			// scrobble submission delay elapsed
 			if currentSong, err := ui.player.GetPlayingTrack(); err != nil {
 				// user paused/stopped
-				ui.logger.Printf("not scrobbling: %v", err)
+				ui.logger.Debug("not scrobbling: %v", err)
 			} else {
 				// it's still playing
-				ui.logger.Printf("scrobbling: %s", currentSong.Id)
+				ui.logger.Debug("scrobbling: %s", currentSong.Id)
 				if _, err := ui.connection.ScrobbleSubmission(currentSong.Id, true); err != nil {
-					ui.logger.PrintError("scrobble submission", err)
+					ui.logger.Error("scrobble submission", err)
 				}
 			}
 		}
@@ -171,7 +172,7 @@ func (ui *Ui) backgroundEventLoop() {
 func (ui *Ui) addStarredToList() {
 	response, err := ui.connection.GetStarred()
 	if err != nil {
-		ui.logger.PrintError("addStarredToList", err)
+		ui.logger.Error("addStarredToList", err)
 	}
 
 	for _, e := range response.Starred.Song {

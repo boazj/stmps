@@ -5,7 +5,7 @@ package gui
 
 import (
 	"github.com/rivo/tview"
-	"github.com/spezifisch/stmps/subsonic"
+	"github.com/spezifisch/stmps/service"
 )
 
 func makeModal(p tview.Primitive, width, height int) tview.Primitive {
@@ -15,7 +15,7 @@ func makeModal(p tview.Primitive, width, height int) tview.Primitive {
 		AddItem(p, 1, 1, 1, 1, 0, 0, true)
 }
 
-func formatSongForPlaylistEntry(entity subsonic.SubsonicEntity) (text string) {
+func formatSongForPlaylistEntry(entity service.SubsonicEntity) (text string) {
 	if entity.Title != "" {
 		text += "[::-] [white]" + tview.Escape(entity.Title)
 	}

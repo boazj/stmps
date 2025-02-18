@@ -13,3 +13,42 @@
 - [ ] Fix issue where album is not added to queue, usually after queue gets empty
 - [ ] Fix volume control
 - [x] Fix config file location
+- Architecture
+  - Infra
+    - [ ] Context
+    - [ ] Logger
+    - [ ] Config
+  - Subsonic / Media Service - Responsible on getting available tracks and metadata
+    - [ ] Connector
+    - [ ] SDK / API
+      - [ ] Cache
+  - Player
+    - [ ] Connector to concrete player
+      - [ ] Event emmitter
+    - [ ] State
+      - [ ] Active track
+        - [ ] Duration
+        - [ ] Position
+      - [ ] Queue
+      - [ ] Volume
+  - Application
+    - MetaData
+      - [ ] Artists
+        - [ ] Albums
+          - [ ] Tracks
+            - [ ] Media links
+      - [ ] Art
+    - UI
+      - [ ] Config
+      - [ ] Player widget
+        - [ ] Wide
+        - [ ] Square
+        - [ ] Panel
+      - [ ] Browse MetaData View
+        - [ ] Search
+      - [ ] Queue View
+        - [ ] Search
+      - [ ] Playlist View
+        - [ ] Search
+      - [ ] Log View
+        - [ ] Search

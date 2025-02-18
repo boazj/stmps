@@ -20,13 +20,13 @@ type PropertyEvent struct {
 
 func (p *Player) EventLoop() {
 	if err := p.instance.ObserveProperty(0, string(PlaybackTime), mpv.FORMAT_INT64); err != nil {
-		p.logger.PrintError("Observe1", err)
+		p.logger.Error("Observe1", err)
 	}
 	if err := p.instance.ObserveProperty(0, string(Duration), mpv.FORMAT_INT64); err != nil {
-		p.logger.PrintError("Observe2", err)
+		p.logger.Error("Observe2", err)
 	}
 	if err := p.instance.ObserveProperty(0, string(Volume), mpv.FORMAT_INT64); err != nil {
-		p.logger.PrintError("Observe3", err)
+		p.logger.Error("Observe3", err)
 	}
 
 	for evt := range p.mpvEvents {
@@ -35,7 +35,7 @@ func (p *Player) EventLoop() {
 			break
 		} else if evt.Event_Id == mpv.EVENT_PROPERTY_CHANGE {
 			if evt.Data == nil {
-				p.logger.Printf("mpv.EventLoop (%s): Has nil Data", evt.Event_Id.String())
+				p.logger.Debug("mpv.EventLoop (%s): Has nil Data", evt.Event_Id.String())
 				continue
 			}
 			propChangeEvent := (*C.struct_mpv_event_property)(evt.Data)
@@ -62,7 +62,7 @@ func (p *Player) EventLoop() {
 			if p.stopped {
 				// this is feedback for a user-requested stop
 				// don't delete the first track so it gets started from the beginning when pressing play
-				p.logger.Print("mpv.EventLoop: mpv stopped")
+				p.logger.Info("mpv.EventLoop: mpv stopped")
 				p.stopped = true
 				p.sendGuiEvent(EventStopped)
 			} else {
@@ -73,11 +73,11 @@ func (p *Player) EventLoop() {
 
 				if len(p.queue) > 0 {
 					if err := p.instance.Command([]string{"loadfile", p.queue[0].Uri}); err != nil {
-						p.logger.PrintError("mpv.EventLoop: load next", err)
+						p.logger.Error("mpv.EventLoop: load next", err)
 					}
 				} else {
 					// no remaining tracks
-					p.logger.Print("mpv.EventLoop: stopping (auto)")
+					p.logger.Info("mpv.EventLoop: stopping (auto)")
 					p.stopped = true
 					p.sendGuiEvent(EventStopped)
 				}
@@ -92,7 +92,7 @@ func (p *Player) EventLoop() {
 			}
 
 			if paused, err := p.IsPaused(); err != nil {
-				p.logger.PrintError("mpv.EventLoop: IsPaused", err)
+				p.logger.Error("mpv.EventLoop: IsPaused", err)
 			} else if !paused {
 				p.sendGuiDataEvent(EventPlaying, currentSong)
 			} else {
@@ -101,7 +101,7 @@ func (p *Player) EventLoop() {
 		} else if evt.Event_Id == mpv.EVENT_IDLE || evt.Event_Id == mpv.EVENT_NONE {
 			continue
 		} else {
-			p.logger.Printf("mpv.EventLoop: unhandled event id %v", evt.Event_Id)
+			p.logger.Warn("mpv.EventLoop: unhandled event id %v", evt.Event_Id)
 			continue
 		}
 	}

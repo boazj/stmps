@@ -173,7 +173,7 @@ func (ui *Ui) createPlaylistSelectionWidget() (m *PlaylistSelectionWidget) {
 		case tcell.KeyUp:
 			return m.focusPrev(event)
 		default:
-			m.ui.logger.Printf("non-input key = %d", event.Key())
+			m.ui.logger.Debug("non-input key = %d", event.Key())
 		}
 		return event
 	})

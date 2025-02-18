@@ -18,7 +18,7 @@ import (
 	"github.com/rivo/tview"
 	"github.com/spezifisch/stmps/logger"
 	"github.com/spezifisch/stmps/mpvplayer"
-	"github.com/spezifisch/stmps/subsonic"
+	"github.com/spezifisch/stmps/service"
 	"github.com/spezifisch/stmps/utils"
 )
 
@@ -54,7 +54,7 @@ type QueuePage struct {
 
 	// external refs
 	ui     *Ui
-	logger logger.LoggerInterface
+	logger logger.Logger
 
 	songInfoTemplate *template.Template
 }
@@ -79,7 +79,7 @@ func (ui *Ui) createQueuePage() *QueuePage {
 	})
 	songInfoTemplate, err := tmpl.Parse(songInfoTemplateString)
 	if err != nil {
-		ui.logger.PrintError("createQueuePage", err)
+		ui.logger.Error("createQueuePage", err)
 	}
 	queuePage := QueuePage{
 		ui:               ui,
@@ -109,7 +109,7 @@ func (ui *Ui) createQueuePage() *QueuePage {
 				queuePage.moveSongUp()
 			case 's':
 				if len(queuePage.queueData.playerQueue) == 0 {
-					queuePage.logger.Print("no items in queue to save")
+					queuePage.logger.Info("no items in queue to save")
 					return nil
 				}
 				queuePage.ui.ShowSelectPlaylist()
@@ -119,7 +119,7 @@ func (ui *Ui) createQueuePage() *QueuePage {
 				go func() {
 					ssr, err := queuePage.ui.connection.LoadPlayQueue()
 					if err != nil {
-						queuePage.logger.Printf("unable to load play queue from server: %s", err)
+						queuePage.logger.Error("unable to load play queue from server: %s", err)
 						return
 					}
 					queuePage.queueList.Clear()
@@ -130,10 +130,10 @@ func (ui *Ui) createQueuePage() *QueuePage {
 						}
 						ui.queuePage.UpdateQueue()
 						if err := ui.player.Play(); err != nil {
-							queuePage.logger.Printf("error playing: %s", err)
+							queuePage.logger.Error("error playing: %s", err)
 						}
 						if err = ui.player.Seek(ssr.PlayQueue.Position); err != nil {
-							queuePage.logger.Printf("unable to seek to position %s: %s", time.Duration(ssr.PlayQueue.Position)*time.Second, err)
+							queuePage.logger.Error("unable to seek to position %s: %s", time.Duration(ssr.PlayQueue.Position)*time.Second, err)
 						}
 						_ = ui.player.Pause()
 					}
@@ -192,7 +192,7 @@ func (q *QueuePage) changeSelection(row, column int) {
 				art = nart
 			}
 		} else {
-			q.logger.Printf("error fetching cover art for %s: %v", highlightedTrack.Title, err)
+			q.logger.Error("error fetching cover art for %s: %v", highlightedTrack.Title, err)
 		}
 	}
 	if q.currentArt != art {
@@ -232,13 +232,13 @@ func (q *QueuePage) handleToggleStar() {
 
 	currentIndex, err := q.getSelectedItem()
 	if err != nil {
-		q.logger.PrintError("handleToggleStar", err)
+		q.logger.Error("handleToggleStar", err)
 		return
 	}
 
 	entity, err := q.ui.player.GetQueueItem(currentIndex)
 	if err != nil {
-		q.logger.PrintError("handleToggleStar", err)
+		q.logger.Error("handleToggleStar", err)
 		return
 	}
 
@@ -287,7 +287,7 @@ func (q *QueuePage) moveSongUp() {
 
 	currentIndex, column := q.queueList.GetSelection()
 	if currentIndex < 0 || column < 0 {
-		q.logger.Printf("moveSongUp: invalid selection (%d, %d)", currentIndex, column)
+		q.logger.Debug("moveSongUp: invalid selection (%d, %d)", currentIndex, column)
 		return
 	}
 
@@ -317,7 +317,7 @@ func (q *QueuePage) moveSongDown() {
 
 	currentIndex, column := q.queueList.GetSelection()
 	if currentIndex < 0 || column < 0 {
-		q.logger.Printf("moveSongDown: invalid selection (%d, %d)", currentIndex, column)
+		q.logger.Debug("moveSongDown: invalid selection (%d, %d)", currentIndex, column)
 		return
 	}
 
@@ -327,7 +327,7 @@ func (q *QueuePage) moveSongDown() {
 	}
 
 	if currentIndex > queueLen-2 {
-		q.logger.Printf("moveSongDown: can't move last song")
+		q.logger.Debug("moveSongDown: can't move last song")
 		return
 	}
 
@@ -368,19 +368,19 @@ func (q *QueuePage) saveQueue(playlistName string) {
 			break
 		}
 	}
-	var response *subsonic.SubsonicResponse
+	var response *service.SubsonicResponse
 	var err error
 	if playlistId == "" {
-		q.logger.Printf("Saving %d items to playlist %s", len(q.queueData.playerQueue), playlistName)
+		q.logger.Info("Saving %d items to playlist %s", len(q.queueData.playerQueue), playlistName)
 		response, err = q.ui.connection.CreatePlaylist("", playlistName, songIds)
 	} else {
-		q.logger.Printf("Replacing playlist %s with %d", playlistId, len(q.queueData.playerQueue))
+		q.logger.Info("Replacing playlist %s with %d", playlistId, len(q.queueData.playerQueue))
 		response, err = q.ui.connection.CreatePlaylist(playlistId, "", songIds)
 	}
 	if err != nil {
 		message := fmt.Sprintf("Error saving queue: %s", err)
 		q.ui.showMessageBox(message)
-		q.logger.Print(message)
+		q.logger.Error(message)
 	} else {
 		if playlistId != "" {
 			for i, pl := range q.ui.playlists {

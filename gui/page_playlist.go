@@ -11,7 +11,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 	"github.com/spezifisch/stmps/logger"
-	"github.com/spezifisch/stmps/subsonic"
+	"github.com/spezifisch/stmps/service"
 	"github.com/spf13/viper"
 )
 
@@ -26,7 +26,7 @@ type PlaylistPage struct {
 
 	// external refs
 	ui     *Ui
-	logger logger.LoggerInterface
+	logger logger.Logger
 
 	updatingMutex sync.Locker
 	isUpdating    bool
@@ -246,13 +246,13 @@ func (p *PlaylistPage) UpdatePlaylists() {
 	go func() {
 		response, err := p.ui.connection.GetPlaylists()
 		if err != nil {
-			p.logger.PrintError("GetPlaylists", err)
+			p.logger.Error("GetPlaylists", err)
 			p.isUpdating = false
 			stop <- true
 			return
 		}
 		if response == nil {
-			p.logger.Printf("no error from GetPlaylists, but also no response!")
+			p.logger.Error("no error from GetPlaylists, but also no response!")
 			stop <- true
 			return
 		}
@@ -273,7 +273,7 @@ func (p *PlaylistPage) UpdatePlaylists() {
 	}()
 }
 
-func (p *PlaylistPage) addPlaylist(playlist subsonic.SubsonicPlaylist) {
+func (p *PlaylistPage) addPlaylist(playlist service.SubsonicPlaylist) {
 	p.playlistList.AddItem(tview.Escape(playlist.Name), "", 0, nil)
 	p.ui.addToPlaylistList.AddItem(tview.Escape(playlist.Name), "", 0, nil)
 }
@@ -321,7 +321,7 @@ func (p *PlaylistPage) handleAddPlaylistToQueue() {
 	p.ui.queuePage.UpdateQueue()
 }
 
-func (p *PlaylistPage) handlePlaylistSelected(playlist subsonic.SubsonicPlaylist) {
+func (p *PlaylistPage) handlePlaylistSelected(playlist service.SubsonicPlaylist) {
 	p.selectedPlaylist.Clear()
 	p.selectedPlaylist.SetSelectedFocusOnly(true)
 
@@ -335,7 +335,7 @@ func (p *PlaylistPage) handlePlaylistSelected(playlist subsonic.SubsonicPlaylist
 func (p *PlaylistPage) newPlaylist(name string) {
 	response, err := p.ui.connection.CreatePlaylist("", name, nil)
 	if err != nil {
-		p.logger.Printf("newPlaylist: CreatePlaylist %s -- %s", name, err.Error())
+		p.logger.Error("newPlaylist: CreatePlaylist %s -- %s", name, err)
 		return
 	}
 
@@ -362,6 +362,6 @@ func (p *PlaylistPage) deletePlaylist(index int) {
 	p.playlistList.RemoveItem(index)
 	p.ui.addToPlaylistList.RemoveItem(index)
 	if err := p.ui.connection.DeletePlaylist(string(playlist.Id)); err != nil {
-		p.logger.PrintError("deletePlaylist", err)
+		p.logger.Error("deletePlaylist", err)
 	}
 }

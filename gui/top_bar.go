@@ -17,10 +17,10 @@ type TopBar struct {
 
 	// external refs
 	// ui     *Ui
-	logger logger.LoggerInterface
+	logger logger.Logger
 }
 
-func InitTopBar(logger logger.LoggerInterface) *TopBar {
+func InitTopBar(logger logger.Logger) *TopBar {
 	startStopStatus := tview.NewTextView().
 		SetTextAlign(tview.AlignLeft).
 		SetDynamicColors(true).

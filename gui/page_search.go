@@ -11,7 +11,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 	"github.com/spezifisch/stmps/logger"
-	"github.com/spezifisch/stmps/subsonic"
+	"github.com/spezifisch/stmps/service"
 )
 
 type SearchPage struct {
@@ -25,13 +25,13 @@ type SearchPage struct {
 	songList    *tview.List
 	searchField *tview.InputField
 
-	artists []*subsonic.Artist
-	albums  []*subsonic.Album
-	songs   []*subsonic.SubsonicEntity
+	artists []*service.Artist
+	albums  []*service.Album
+	songs   []*service.SubsonicEntity
 
 	// external refs
 	ui     *Ui
-	logger logger.LoggerInterface
+	logger logger.Logger
 }
 
 func (ui *Ui) createSearchPage() *SearchPage {
@@ -102,7 +102,7 @@ func (ui *Ui) createSearchPage() *SearchPage {
 		case 'a':
 			if len(searchPage.artists) != 0 {
 				idx := searchPage.artistList.GetCurrentItem()
-				searchPage.logger.Printf("artistList adding (%d) %s", idx, searchPage.artists[idx].Name)
+				searchPage.logger.Info("artistList adding (%d) %s", idx, searchPage.artists[idx].Name)
 				searchPage.addArtistToQueue(searchPage.artists[idx])
 				return nil
 			}
@@ -135,7 +135,7 @@ func (ui *Ui) createSearchPage() *SearchPage {
 		case 'a':
 			if len(searchPage.albums) != 0 {
 				idx := searchPage.albumList.GetCurrentItem()
-				searchPage.logger.Printf("albumList adding (%d) %s", idx, searchPage.albums[idx].Name)
+				searchPage.logger.Info("albumList adding (%d) %s", idx, searchPage.albums[idx].Name)
 				searchPage.addAlbumToQueue(searchPage.albums[idx])
 				return nil
 			}
@@ -189,11 +189,11 @@ func (ui *Ui) createSearchPage() *SearchPage {
 		case tcell.KeyEnter:
 			search <- ""
 			searchPage.artistList.Clear()
-			searchPage.artists = make([]*subsonic.Artist, 0)
+			searchPage.artists = make([]*service.Artist, 0)
 			searchPage.albumList.Clear()
-			searchPage.albums = make([]*subsonic.Album, 0)
+			searchPage.albums = make([]*service.Album, 0)
 			searchPage.songList.Clear()
-			searchPage.songs = make([]*subsonic.SubsonicEntity, 0)
+			searchPage.songs = make([]*service.SubsonicEntity, 0)
 
 			queryStr := searchPage.searchField.GetText()
 			search <- queryStr
@@ -218,7 +218,7 @@ func (s *SearchPage) search(search chan string) {
 			artOff = 0
 			albOff = 0
 			songOff = 0
-			s.logger.Printf("searching for %q [%d, %d, %d]", query, artOff, albOff, songOff)
+			s.logger.Info("searching for %q [%d, %d, %d]", query, artOff, albOff, songOff)
 			for len(more) > 0 {
 				<-more
 			}
@@ -226,11 +226,11 @@ func (s *SearchPage) search(search chan string) {
 				continue
 			}
 		case <-more:
-			s.logger.Printf("fetching more %q [%d, %d, %d]", query, artOff, albOff, songOff)
+			s.logger.Info("fetching more %q [%d, %d, %d]", query, artOff, albOff, songOff)
 		}
 		res, err := s.ui.connection.Search(query, artOff, albOff, songOff)
 		if err != nil {
-			s.logger.PrintError("SearchPage.search", err)
+			s.logger.Error("SearchPage.search", err)
 			return
 		}
 		// Quit searching if there are no more results
@@ -272,10 +272,10 @@ func (s *SearchPage) search(search chan string) {
 	}
 }
 
-func (s *SearchPage) addArtistToQueue(entity subsonic.Ider) {
+func (s *SearchPage) addArtistToQueue(entity service.Ider) {
 	response, err := s.ui.connection.GetArtist(entity.ID())
 	if err != nil {
-		s.logger.Printf("addArtistToQueue: GetArtist %s -- %s", entity.ID(), err.Error())
+		s.logger.Error("addArtistToQueue: GetArtist %s -- %s", entity.ID(), err)
 		return
 	}
 
@@ -283,7 +283,7 @@ func (s *SearchPage) addArtistToQueue(entity subsonic.Ider) {
 	for _, album := range response.Artist.Album {
 		response, err = s.ui.connection.GetAlbum(album.Id)
 		if err != nil {
-			s.logger.Printf("error getting album %s while adding artist to queue", album.Id)
+			s.logger.Error("error getting album %s while adding artist to queue -- %s", album.Id, err)
 			return
 		}
 		sort.Sort(response.Album.Song)
@@ -312,10 +312,10 @@ func (s *SearchPage) addArtistToQueue(entity subsonic.Ider) {
 	s.ui.queuePage.UpdateQueue()
 }
 
-func (s *SearchPage) addAlbumToQueue(entity subsonic.Ider) {
+func (s *SearchPage) addAlbumToQueue(entity service.Ider) {
 	response, err := s.ui.connection.GetAlbum(entity.ID())
 	if err != nil {
-		s.logger.Printf("addToQueue: GetMusicDirectory %s -- %s", entity.ID(), err.Error())
+		s.logger.Error("addToQueue: GetMusicDirectory %s -- %s", entity.ID(), err)
 		return
 	}
 	sort.Sort(response.Album.Song)

@@ -9,7 +9,7 @@ import (
 	"github.com/spezifisch/stmps/logger"
 	"github.com/spezifisch/stmps/mpvplayer"
 	"github.com/spezifisch/stmps/remote"
-	"github.com/spezifisch/stmps/subsonic"
+	"github.com/spezifisch/stmps/service"
 )
 
 // struct contains all the updatable elements of the Ui
@@ -55,10 +55,10 @@ type Ui struct {
 	mpvEvents   chan mpvplayer.UiEvent
 	mprisPlayer *remote.MprisPlayer
 
-	playlists  []subsonic.SubsonicPlaylist
-	connection *subsonic.SubsonicConnection
+	playlists  []service.SubsonicPlaylist
+	connection *service.SubsonicConnection
 	player     *mpvplayer.Player
-	logger     *logger.Logger
+	logger     logger.Logger
 }
 
 const (
@@ -77,10 +77,10 @@ const (
 	PageSelectPlaylist = "selectPlaylist"
 )
 
-func InitGui(indexes *[]subsonic.SubsonicIndex,
-	connection *subsonic.SubsonicConnection,
+func InitGui(indexes *[]service.SubsonicIndex,
+	connection *service.SubsonicConnection,
 	player *mpvplayer.Player,
-	logger *logger.Logger,
+	logger logger.Logger,
 	mprisPlayer *remote.MprisPlayer,
 ) (ui *Ui) {
 	ui = &Ui{
@@ -89,7 +89,7 @@ func InitGui(indexes *[]subsonic.SubsonicIndex,
 		eventLoop: nil, // initialized by initEventLoops()
 		mpvEvents: make(chan mpvplayer.UiEvent, 5),
 
-		playlists:   []subsonic.SubsonicPlaylist{},
+		playlists:   []service.SubsonicPlaylist{},
 		connection:  connection,
 		player:      player,
 		logger:      logger,

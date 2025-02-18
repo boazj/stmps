@@ -9,7 +9,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 	"github.com/spezifisch/stmps/logger"
-	"github.com/spezifisch/stmps/subsonic"
+	"github.com/spezifisch/stmps/service"
 	"github.com/spezifisch/stmps/utils"
 )
 
@@ -23,15 +23,15 @@ type BrowserPage struct {
 	entityList  *tview.List
 	searchField *tview.InputField
 
-	currentDirectory *subsonic.SubsonicDirectory
+	currentDirectory *service.SubsonicDirectory
 	artistIdList     []string
 
 	// external refs
 	ui     *Ui
-	logger logger.LoggerInterface
+	logger logger.Logger
 }
 
-func (ui *Ui) createBrowserPage(indexes *[]subsonic.SubsonicIndex) *BrowserPage {
+func (ui *Ui) createBrowserPage(indexes *[]service.SubsonicIndex) *BrowserPage {
 	browserPage := BrowserPage{
 		ui:     ui,
 		logger: ui.logger,
@@ -52,7 +52,7 @@ func (ui *Ui) createBrowserPage(indexes *[]subsonic.SubsonicIndex) *BrowserPage 
 		for _, artist := range index.Artists {
 			artistName, err := utils.Normalize(artist.Name)
 			if err != nil {
-				ui.logger.Printf("BrowserPage: Failed to normalize artist name %s", artist.Name)
+				ui.logger.Warn("BrowserPage: Failed to normalize artist name %s", artist.Name)
 			}
 			artistName = tview.Escape(artistName)
 			browserPage.artistList.AddItem(tview.Escape(artistName), "", 0, nil)
@@ -126,7 +126,7 @@ func (ui *Ui) createBrowserPage(indexes *[]subsonic.SubsonicIndex) *BrowserPage 
 			// REFRESH artists
 			indexResponse, err := ui.connection.GetIndexes()
 			if err != nil {
-				ui.logger.Printf("Error fetching indexes from server: %s\n", err)
+				ui.logger.Error("Error fetching indexes from server: %s", err)
 				return event
 			}
 
@@ -139,11 +139,11 @@ func (ui *Ui) createBrowserPage(indexes *[]subsonic.SubsonicIndex) *BrowserPage 
 				sort.Slice(index.Artists, func(i, j int) bool {
 					artistI, err := utils.Normalize(index.Artists[i].Name)
 					if err != nil {
-						ui.logger.Printf("BrowserPage: Failed to normalize artist name %s", index.Artists[i].Name)
+						ui.logger.Warn("BrowserPage: Failed to normalize artist name %s", index.Artists[i].Name)
 					}
 					artistJ, err := utils.Normalize(index.Artists[j].Name)
 					if err != nil {
-						ui.logger.Printf("BrowserPage: Failed to normalize artist name %s", index.Artists[j].Name)
+						ui.logger.Warn("BrowserPage: Failed to normalize artist name %s", index.Artists[j].Name)
 					}
 
 					return artistI < artistJ
@@ -151,7 +151,7 @@ func (ui *Ui) createBrowserPage(indexes *[]subsonic.SubsonicIndex) *BrowserPage 
 				for _, artist := range index.Artists {
 					artistName, err := utils.Normalize(artist.Name)
 					if err != nil {
-						ui.logger.Printf("BrowserPage: Failed to normalize artist name %s", artist.Name)
+						ui.logger.Warn("BrowserPage: Failed to normalize artist name %s", artist.Name)
 					}
 					browserPage.artistList.AddItem(tview.Escape(artistName), "", 0, nil)
 					browserPage.artistIdList = append(browserPage.artistIdList, artist.Id)
@@ -347,7 +347,7 @@ func (b *BrowserPage) handleEntitySelected(directoryId string) {
 	}
 
 	if response, err := b.ui.connection.GetMusicDirectory(directoryId); err != nil || response == nil {
-		b.logger.Printf("handleEntitySelected: GetMusicDirectory %s -- %v", directoryId, err)
+		b.logger.Error("handleEntitySelected: GetMusicDirectory %s -- %v", directoryId, err)
 		return
 	} else {
 		b.currentDirectory = &response.Directory
@@ -405,7 +405,7 @@ func (b *BrowserPage) handleToggleEntityStar() {
 	_, remove := b.ui.starIdList[entity.Id]
 
 	if _, err := b.ui.connection.ToggleStar(entity.Id, b.ui.starIdList); err != nil {
-		b.logger.PrintError("ToggleStar", err)
+		b.logger.Error("ToggleStar", err)
 		return
 	}
 
@@ -422,7 +422,7 @@ func (b *BrowserPage) handleToggleEntityStar() {
 	b.ui.queuePage.UpdateQueue()
 }
 
-func entityListTextFormat(entity subsonic.SubsonicEntity, starredItems map[string]struct{}) string {
+func entityListTextFormat(entity service.SubsonicEntity, starredItems map[string]struct{}) string {
 	title, err := utils.Normalize(entity.Title)
 	if err != nil {
 		title = entity.Title
@@ -440,10 +440,10 @@ func entityListTextFormat(entity subsonic.SubsonicEntity, starredItems map[strin
 	return tview.Escape(title) + star
 }
 
-func (b *BrowserPage) addDirectoryToQueue(entity *subsonic.SubsonicEntity) {
+func (b *BrowserPage) addDirectoryToQueue(entity *service.SubsonicEntity) {
 	response, err := b.ui.connection.GetMusicDirectory(entity.Id)
 	if err != nil {
-		b.logger.Printf("addDirectoryToQueue: GetMusicDirectory %s -- %s", entity.Id, err.Error())
+		b.logger.Error("addDirectoryToQueue: GetMusicDirectory %s -- %s", entity.Id, err)
 		return
 	}
 
@@ -501,7 +501,7 @@ func (b *BrowserPage) searchPrev() {
 	b.artistList.SetCurrentItem(idxs[len(idxs)-1])
 }
 
-func (b *BrowserPage) handleAddSongToPlaylist(playlist *subsonic.SubsonicPlaylist) {
+func (b *BrowserPage) handleAddSongToPlaylist(playlist *service.SubsonicPlaylist) {
 	currentIndex := b.entityList.GetCurrentItem()
 
 	// if we have a parent directory subtract 1 to account for the [..]
@@ -518,7 +518,7 @@ func (b *BrowserPage) handleAddSongToPlaylist(playlist *subsonic.SubsonicPlaylis
 
 	if !entity.IsDirectory {
 		if err := b.ui.connection.AddSongToPlaylist(string(playlist.Id), entity.Id); err != nil {
-			b.logger.PrintError("AddSongToPlaylist", err)
+			b.logger.Error("AddSongToPlaylist", err)
 			return
 		}
 	}

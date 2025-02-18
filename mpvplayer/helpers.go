@@ -12,7 +12,7 @@ import (
 func (p *Player) getPlayerStateProperty(eid mpv.EventId, prop Property) int64 {
 	value, err := p.getPropertyInt64(prop)
 	if err != nil {
-		p.logger.Printf("mpv.EventLoop (%s): GetProperty %s -- %s", eid, prop, err)
+		p.logger.Error("mpv.EventLoop (%s): GetProperty %s -- %s", eid, prop, err)
 	}
 	return value
 }

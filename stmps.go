@@ -18,7 +18,7 @@ import (
 	"github.com/spezifisch/stmps/logger"
 	"github.com/spezifisch/stmps/mpvplayer"
 	"github.com/spezifisch/stmps/remote"
-	"github.com/spezifisch/stmps/subsonic"
+	"github.com/spezifisch/stmps/service"
 	tviewcommand "github.com/spezifisch/tview-command"
 	"github.com/spf13/viper"
 )
@@ -41,6 +41,7 @@ func readConfig(configFile *string) error {
 	} else {
 		viper.SetConfigName("stmps")
 		viper.SetConfigType("toml")
+
 		viper.AddConfigPath("$HOME/.config/stmps")
 		viper.AddConfigPath(".")
 	}
@@ -91,9 +92,9 @@ func parseConfig() {
 }
 
 // initCommandHandler sets up tview-command as main input handler
-func initCommandHandler(logger *logger.Logger) {
+func initCommandHandler(logger logger.Logger) {
 	tviewcommand.SetLogHandler(func(msg string) {
-		logger.Print(msg)
+		logger.Info(msg)
 	})
 
 	configPath := "HACK.commands.toml"
@@ -101,7 +102,7 @@ func initCommandHandler(logger *logger.Logger) {
 	// Load the configuration file
 	config, err := tviewcommand.LoadConfig(configPath)
 	if err != nil || config == nil {
-		logger.PrintError("Failed to load command-shortcut config", err)
+		logger.Error("Failed to load command-shortcut config", err)
 	}
 
 	// env := keybinding.SetupEnvironment()
@@ -166,14 +167,15 @@ func main() {
 		osExit(2)
 	}
 
-	logger := logger.Init()
+	logger := logger.Init(logger.Info)
 	initCommandHandler(logger)
 	// TODO: client name and client version are correct but confusing, should be app version and they should be available
 	// via a general, static, base application class
 
 	// Start with building the base connection so we can figure out if there is any auth dance requiered
-	connection := subsonic.Init(logger)
-	connection.SetClientInfo(consts.ClientName, consts.ClientVersion)
+	connection := service.Init(logger, consts.ClientName, consts.ClientVersion)
+	// TODO: maybe let connection constructor to pull the right data
+	// TODO: change relevant section to be "subsconic" or "server", be backwards compatible
 	connection.Username = viper.GetString("auth.username")
 	connection.Password = viper.GetString("auth.password")
 	connection.Authentik = viper.GetBool("sso.authentik")
@@ -234,7 +236,7 @@ func main() {
 			fmt.Printf("Unable to initialize MediaPlayer bindings: %s\n", err)
 			osExit(1)
 		} else {
-			logger.Print("MacOS MediaPlayer registered")
+			logger.Info("MacOS MediaPlayer registered")
 		}
 	}
 

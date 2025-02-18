@@ -20,7 +20,7 @@ type Player struct {
 	mpvEvents     chan *mpv.Event
 	eventConsumer EventConsumer
 	queue         PlayerQueue
-	logger        logger.LoggerInterface
+	logger        logger.Logger
 
 	replaceInProgress bool
 	stopped           bool
@@ -45,7 +45,7 @@ type Player struct {
 
 var _ remote.ControlledPlayer = (*Player)(nil)
 
-func NewPlayer(logger logger.LoggerInterface, options map[string]string) (player *Player, err error) {
+func NewPlayer(logger logger.Logger, options map[string]string) (player *Player, err error) {
 	m := mpv.Create()
 
 	for opt, value := range options {
@@ -95,24 +95,24 @@ func (p *Player) PlayNextTrack() error {
 		if len(p.queue) > 0 {
 			// replace currently playing song with next song
 			if loaded, err := p.IsSongLoaded(); err != nil {
-				p.logger.PrintError("PlayNextTrack", err)
+				p.logger.Error("PlayNextTrack", err)
 			} else if loaded {
 				p.replaceInProgress = true
 				if err := p.temporaryStop(); err != nil {
-					p.logger.PrintError("temporaryStop", err)
+					p.logger.Error("temporaryStop", err)
 				}
 				return p.instance.Command([]string{"loadfile", p.queue[0].Uri})
 			}
 		} else {
 			// stop with empty queue
 			if err := p.Stop(); err != nil {
-				p.logger.PrintError("Stop", err)
+				p.logger.Error("Stop", err)
 			}
 		}
 	} else {
 		// queue empty
 		if err := p.Stop(); err != nil {
-			p.logger.PrintError("Stop", err)
+			p.logger.Error("Stop", err)
 		}
 	}
 	return nil
@@ -123,14 +123,14 @@ func (p *Player) PlayUri(id, uri, title, artist, album string, duration, track, 
 	p.replaceInProgress = true
 	if ip, e := p.IsPaused(); ip && e == nil {
 		if err := p.Pause(); err != nil {
-			p.logger.PrintError("Pause", err)
+			p.logger.Error("Pause", err)
 		}
 	}
 	return p.instance.Command([]string{"loadfile", uri})
 }
 
 func (p *Player) Stop() error {
-	p.logger.Printf("stopping (user)")
+	p.logger.Info("stopping (user)")
 	p.stopped = true
 	return p.instance.Command([]string{"stop"})
 }
@@ -160,7 +160,7 @@ func (p *Player) IsPlaying() (playing bool, err error) {
 
 func (p *Player) Test() {
 	res, err := p.getPropertyBool(IdleActive)
-	p.logger.Printf("res %v err %v", res, err)
+	p.logger.Debug("res %v err %v", res, err)
 }
 
 // Pause toggles playing music
@@ -181,7 +181,7 @@ func (p *Player) Pause() (err error) {
 		// toggle pause if not stopped
 		err = p.instance.Command([]string{"cycle", "pause"})
 		if err != nil {
-			p.logger.PrintError("cycle pause", err)
+			p.logger.Error("cycle pause", err)
 			return
 		}
 		paused = !paused
@@ -201,14 +201,14 @@ func (p *Player) Pause() (err error) {
 			currentSong := p.queue[0]
 			err = p.instance.Command([]string{"loadfile", currentSong.Uri})
 			if err != nil {
-				p.logger.PrintError("loadfile", err)
+				p.logger.Error("loadfile", err)
 				return
 			}
 
 			if p.stopped {
 				p.stopped = false
 				if err = p.instance.SetProperty("pause", mpv.FORMAT_FLAG, false); err != nil {
-					p.logger.PrintError("setprop pause", err)
+					p.logger.Error("setprop pause", err)
 				}
 
 				// mpv will send start file event which also sends the gui event
@@ -251,7 +251,7 @@ func (p *Player) Seek(increment int) error {
 // accessed from gui context
 func (p *Player) ClearQueue() {
 	if err := p.Stop(); err != nil {
-		p.logger.PrintError("Stop", err)
+		p.logger.Error("Stop", err)
 	}
 	p.queue = make([]QueueItem, 0) // TODO mutex queue access
 }
@@ -259,11 +259,11 @@ func (p *Player) ClearQueue() {
 func (p *Player) DeleteQueueItem(index int) {
 	// TODO mutex queue access
 	if index >= len(p.queue) {
-		p.logger.Printf("DeleteQueueItem bad index %d (len %d)", index, len(p.queue))
+		p.logger.Warn("DeleteQueueItem bad index %d (len %d)", index, len(p.queue))
 	} else if len(p.queue) > 1 {
 		if index == 0 {
 			if err := p.PlayNextTrack(); err != nil {
-				p.logger.PrintError("PlayNextTrack", err)
+				p.logger.Error("PlayNextTrack", err)
 			}
 		} else {
 			p.queue = append(p.queue[:index], p.queue[index+1:]...)
@@ -279,11 +279,11 @@ func (p *Player) AddToQueue(item *QueueItem) {
 
 func (p *Player) MoveSongUp(index int) {
 	if index < 1 {
-		p.logger.Printf("MoveSongUp(%d) can't move top item", index)
+		p.logger.Debug("MoveSongUp(%d) can't move top item", index)
 		return
 	}
 	if index >= len(p.queue) {
-		p.logger.Printf("MoveSongUp(%d) not that many songs in queue", index)
+		p.logger.Debug("MoveSongUp(%d) not that many songs in queue", index)
 		return
 	}
 	p.queue[index-1], p.queue[index] = p.queue[index], p.queue[index-1]
@@ -291,11 +291,11 @@ func (p *Player) MoveSongUp(index int) {
 
 func (p *Player) MoveSongDown(index int) {
 	if index < 0 {
-		p.logger.Printf("MoveSongUp(%d) invalid index", index)
+		p.logger.Debug("MoveSongUp(%d) invalid index", index)
 		return
 	}
 	if index >= len(p.queue)-1 {
-		p.logger.Printf("MoveSongUp(%d) can't move last song down", index)
+		p.logger.Debug("MoveSongUp(%d) can't move last song down", index)
 		return
 	}
 	p.queue[index], p.queue[index+1] = p.queue[index+1], p.queue[index]

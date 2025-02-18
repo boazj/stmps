@@ -12,7 +12,7 @@ import (
 	"github.com/spezifisch/stmps/logger"
 )
 
-func RegisterMPMediaHandler(_ ControlledPlayer, _ logger.LoggerInterface) error {
+func RegisterMPMediaHandler(_ ControlledPlayer, _ logger.Logger) error {
 	// MPMediaHandler only supports macOS.
 	return errors.New("unsupported platform")
 }

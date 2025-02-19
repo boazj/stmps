@@ -92,7 +92,7 @@ func (ui *Ui) guiEventLoop() {
 							ui.mprisPlayer.OnSongChange(currentSong)
 						}
 
-						if ui.connection.Scrobble {
+						if ui.connection.Conf().Scrobble {
 							// TODO: move outside of eventloop, scrobble shouldn't effect player performance and processing loop
 
 							// scrobble "now playing" event (delegate to background event loop)

@@ -13,12 +13,12 @@ import (
 	"runtime/debug"
 	"runtime/pprof"
 
-	"github.com/spezifisch/stmps/consts"
 	"github.com/spezifisch/stmps/gui"
 	"github.com/spezifisch/stmps/logger"
 	"github.com/spezifisch/stmps/mpvplayer"
 	"github.com/spezifisch/stmps/remote"
 	"github.com/spezifisch/stmps/service"
+	"github.com/spezifisch/stmps/utils"
 	tviewcommand "github.com/spezifisch/tview-command"
 	"github.com/spf13/viper"
 )
@@ -167,52 +167,25 @@ func main() {
 		osExit(2)
 	}
 
-	logger := logger.Init(logger.Info)
-	initCommandHandler(logger)
-	// TODO: client name and client version are correct but confusing, should be app version and they should be available
-	// via a general, static, base application class
+	conf := utils.InitConfigProvider()
+
+	initCommandHandler(conf.Log())
 
 	// Start with building the base connection so we can figure out if there is any auth dance requiered
-	connection := service.Init(logger, consts.ClientName, consts.ClientVersion)
-	// TODO: maybe let connection constructor to pull the right data
-	// TODO: change relevant section to be "subsconic" or "server", be backwards compatible
-	connection.Username = viper.GetString("auth.username")
-	connection.Password = viper.GetString("auth.password")
-	connection.Authentik = viper.GetBool("sso.authentik")
-	connection.ClientId = viper.GetString("sso.clientid")
-	connection.AuthURL = viper.GetString("sso.authurl")
-	connection.Host = viper.GetString("server.host")
-	connection.PlaintextAuth = viper.GetBool("auth.plaintext")
-	connection.Scrobble = viper.GetBool("server.scrobble")
-	connection.RandomSongNumber = viper.GetUint("client.random-songs")
+	connection := service.InitConnection(conf)
 
 	authHeader, authValue, err := connection.GetAuthToken("Main")
 	if err != nil {
 		fmt.Println("Unable to get authorization token to SSO")
 		osExit(1)
 	}
-	playerOptions := make(map[string]string)
+	playerOptions := conf.Conf().PlayerOptions
 	if len(authHeader) > 0 && len(authValue) > 0 {
 		playerOptions["http-header-fields"] = authHeader + ": " + authValue
 	}
-	playerOptions["audio-display"] = "no"
-	playerOptions["video"] = "no"
-	playerOptions["terminal"] = "no"
-	playerOptions["demuxer-max-bytes"] = "30MiB"
-	playerOptions["audio-client-name"] = "stmp"
-
-	// Loads additional options from conf file, see options in the link below
-	// https://github.com/mpv-player/mpv/blob/master/DOCS/man/options.rst
-	externalPlayerOptions := viper.Sub("mpv")
-	if externalPlayerOptions != nil {
-		opts := externalPlayerOptions.AllSettings()
-		for opt, value := range opts {
-			playerOptions[opt] = value.(string)
-		}
-	}
 
 	// init mpv engine
-	player, err := mpvplayer.NewPlayer(logger, playerOptions)
+	player, err := mpvplayer.NewPlayer(conf.Log(), playerOptions)
 	if err != nil {
 		fmt.Println("Unable to initialize mpv. Is mpv installed?")
 		osExit(1)
@@ -221,7 +194,7 @@ func main() {
 	var mprisPlayer *remote.MprisPlayer
 	// init mpris2 player control (linux only but fails gracefully on other systems)
 	if *enableMpris {
-		mprisPlayer, err = remote.RegisterMprisPlayer(player, logger)
+		mprisPlayer, err = remote.RegisterMprisPlayer(player, conf.Log())
 		if err != nil {
 			fmt.Printf("Unable to register MPRIS with DBUS: %s\n", err)
 			fmt.Println("Try running without MPRIS")
@@ -232,11 +205,11 @@ func main() {
 
 	// init macos mediaplayer control
 	if runtime.GOOS == "darwin" {
-		if err = remote.RegisterMPMediaHandler(player, logger); err != nil {
+		if err = remote.RegisterMPMediaHandler(player, conf.Log()); err != nil {
 			fmt.Printf("Unable to initialize MediaPlayer bindings: %s\n", err)
 			osExit(1)
 		} else {
-			logger.Info("MacOS MediaPlayer registered")
+			conf.Log().Info("MacOS MediaPlayer registered")
 		}
 	}
 
@@ -297,7 +270,7 @@ func main() {
 	ui := gui.InitGui(&indexResponse.Indexes.Index,
 		connection,
 		player,
-		logger,
+		conf.Log(),
 		mprisPlayer)
 
 	// run main loop

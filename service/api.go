@@ -1,7 +1,7 @@
 // Copyright 2023 The STMPS Authors
 // SPDX-License-Identifier: GPL-3.0-only
 
-package subsonic
+package service
 
 import (
 	"bytes"
@@ -19,68 +19,50 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/spezifisch/stmps/logger"
+	"github.com/spezifisch/stmps/utils"
 	webp "golang.org/x/image/webp"
 )
 
 type SubsonicConnection struct {
-	Username         string
-	Password         string
-	Host             string
-	PlaintextAuth    bool
-	Scrobble         bool
-	RandomSongNumber uint
-
-	Authentik bool
-	AuthURL   string
-	ClientId  string
-
-	clientName    string
-	clientVersion string
-
-	logger         logger.LoggerInterface
-	directoryCache map[string]SubsonicResponse
-	coverArts      map[string]image.Image
-	token          string
+	conf *utils.Config
 }
 
-func Init(logger logger.LoggerInterface) *SubsonicConnection {
-	return &SubsonicConnection{
-		clientName:    "example",
-		clientVersion: "1.8.0",
+var (
+	directoryCache map[string]SubsonicResponse = make(map[string]SubsonicResponse)
+	coverArts      map[string]image.Image      = make(map[string]image.Image)
+	token          string                      = ""
+)
 
-		logger:         logger,
-		directoryCache: make(map[string]SubsonicResponse),
-		coverArts:      make(map[string]image.Image),
-		token:          "",
+func InitConnection(conf utils.ConfigProvider) *SubsonicConnection {
+	return &SubsonicConnection{
+		conf: conf.Conf(),
 	}
 }
 
-func (s *SubsonicConnection) SetClientInfo(name, version string) {
-	s.clientName = name
-	s.clientVersion = version
+func (s *SubsonicConnection) Conf() *utils.Config {
+	return s.conf
 }
 
 func (s *SubsonicConnection) ClearCache() {
-	s.directoryCache = make(map[string]SubsonicResponse)
+	directoryCache = make(map[string]SubsonicResponse)
 }
 
 func (s *SubsonicConnection) RemoveCacheEntry(key string) {
-	delete(s.directoryCache, key)
+	delete(directoryCache, key)
 }
 
-func defaultQuery(connection *SubsonicConnection) url.Values {
+func defaultQuery(c *SubsonicConnection) url.Values {
 	query := url.Values{}
-	if connection.PlaintextAuth {
-		query.Set("p", connection.Password)
+	if c.conf.PlaintextAuth {
+		query.Set("p", c.conf.Password)
 	} else {
-		token, salt := authToken(connection.Password)
+		token, salt := authToken(c.conf.Password)
 		query.Set("t", token)
 		query.Set("s", salt)
 	}
-	query.Set("u", connection.Username)
-	query.Set("v", connection.clientVersion)
-	query.Set("c", connection.clientName)
+	query.Set("u", c.conf.Username)
+	query.Set("v", c.Conf().ClientVersion)
+	query.Set("c", c.Conf().ClientName)
 	query.Set("f", "json")
 
 	return query
@@ -314,34 +296,34 @@ func (si *SubsonicId) UnmarshalJSON(b []byte) error {
 }
 
 // requests
-func (connection *SubsonicConnection) GetServerInfo() (*SubsonicResponse, error) {
-	query := defaultQuery(connection)
-	requestUrl := connection.Host + "/rest/ping" + "?" + query.Encode()
-	return connection.getResponse("GetServerInfo", requestUrl)
+func (c *SubsonicConnection) GetServerInfo() (*SubsonicResponse, error) {
+	query := defaultQuery(c)
+	requestUrl := c.conf.Host + "/rest/ping" + "?" + query.Encode()
+	return c.getResponse("GetServerInfo", requestUrl)
 }
 
-func (connection *SubsonicConnection) GetIndexes() (*SubsonicResponse, error) {
-	query := defaultQuery(connection)
-	requestUrl := connection.Host + "/rest/getIndexes" + "?" + query.Encode()
-	return connection.getResponse("GetIndexes", requestUrl)
+func (c *SubsonicConnection) GetIndexes() (*SubsonicResponse, error) {
+	query := defaultQuery(c)
+	requestUrl := c.conf.Host + "/rest/getIndexes" + "?" + query.Encode()
+	return c.getResponse("GetIndexes", requestUrl)
 }
 
-func (connection *SubsonicConnection) GetArtist(id string) (*SubsonicResponse, error) {
-	if cachedResponse, present := connection.directoryCache[id]; present {
+func (c *SubsonicConnection) GetArtist(id string) (*SubsonicResponse, error) {
+	if cachedResponse, present := directoryCache[id]; present {
 		return &cachedResponse, nil
 	}
 
-	query := defaultQuery(connection)
+	query := defaultQuery(c)
 	query.Set("id", id)
-	requestUrl := connection.Host + "/rest/getArtist" + "?" + query.Encode()
-	resp, err := connection.getResponse("GetMusicDirectory", requestUrl)
+	requestUrl := c.conf.Host + "/rest/getArtist" + "?" + query.Encode()
+	resp, err := c.getResponse("GetMusicDirectory", requestUrl)
 	if err != nil {
 		return resp, err
 	}
 
 	// on a sucessful request, cache the response
 	if resp.Status == "ok" {
-		connection.directoryCache[id] = *resp
+		directoryCache[id] = *resp
 	}
 
 	sort.Sort(resp.Directory.Entities)
@@ -349,25 +331,25 @@ func (connection *SubsonicConnection) GetArtist(id string) (*SubsonicResponse, e
 	return resp, nil
 }
 
-func (connection *SubsonicConnection) GetAlbum(id string) (*SubsonicResponse, error) {
-	if cachedResponse, present := connection.directoryCache[id]; present {
+func (c *SubsonicConnection) GetAlbum(id string) (*SubsonicResponse, error) {
+	if cachedResponse, present := directoryCache[id]; present {
 		// This is because Albums that were fetched as Directories aren't populated correctly
 		if cachedResponse.Album.Name != "" {
 			return &cachedResponse, nil
 		}
 	}
 
-	query := defaultQuery(connection)
+	query := defaultQuery(c)
 	query.Set("id", id)
-	requestUrl := connection.Host + "/rest/getAlbum" + "?" + query.Encode()
-	resp, err := connection.getResponse("GetAlbum", requestUrl)
+	requestUrl := c.conf.Host + "/rest/getAlbum" + "?" + query.Encode()
+	resp, err := c.getResponse("GetAlbum", requestUrl)
 	if err != nil {
 		return resp, err
 	}
 
 	// on a sucessful request, cache the response
 	if resp.Status == "ok" {
-		connection.directoryCache[id] = *resp
+		directoryCache[id] = *resp
 	}
 
 	sort.Sort(resp.Directory.Entities)
@@ -375,22 +357,22 @@ func (connection *SubsonicConnection) GetAlbum(id string) (*SubsonicResponse, er
 	return resp, nil
 }
 
-func (connection *SubsonicConnection) GetMusicDirectory(id string) (*SubsonicResponse, error) {
-	if cachedResponse, present := connection.directoryCache[id]; present {
+func (c *SubsonicConnection) GetMusicDirectory(id string) (*SubsonicResponse, error) {
+	if cachedResponse, present := directoryCache[id]; present {
 		return &cachedResponse, nil
 	}
 
-	query := defaultQuery(connection)
+	query := defaultQuery(c)
 	query.Set("id", id)
-	requestUrl := connection.Host + "/rest/getMusicDirectory" + "?" + query.Encode()
-	resp, err := connection.getResponse("GetMusicDirectory", requestUrl)
+	requestUrl := c.conf.Host + "/rest/getMusicDirectory" + "?" + query.Encode()
+	resp, err := c.getResponse("GetMusicDirectory", requestUrl)
 	if err != nil {
 		return resp, err
 	}
 
 	// on a sucessful request, cache the response
 	if resp.Status == "ok" {
-		connection.directoryCache[id] = *resp
+		directoryCache[id] = *resp
 	}
 
 	sort.Sort(resp.Directory.Entities)
@@ -403,44 +385,44 @@ func (connection *SubsonicConnection) GetMusicDirectory(id string) (*SubsonicRes
 // is returned. If, for some reason, the server response can't be parsed into
 // an image, an error is returned. This function can parse GIF, JPEG, and PNG
 // images.
-func (connection *SubsonicConnection) GetCoverArt(id string) (image.Image, error) {
+func (c *SubsonicConnection) GetCoverArt(id string) (image.Image, error) {
 	if id == "" {
 		return nil, fmt.Errorf("GetCoverArt: no ID provided")
 	}
-	if rv, ok := connection.coverArts[id]; ok {
+	if rv, ok := coverArts[id]; ok {
 		return rv, nil
 	}
-	query := defaultQuery(connection)
+	query := defaultQuery(c)
 	query.Set("id", id)
 	query.Set("f", "image/png")
 	caller := "GetCoverArt"
-	requestUrl := connection.Host + "/rest/getCoverArt" + "?" + query.Encode()
-	req, err := connection.baseRequest("GetCoverArt", http.MethodGet, requestUrl, nil)
+	requestUrl := c.conf.Host + "/rest/getCoverArt" + "?" + query.Encode()
+	req, err := c.baseRequest("GetCoverArt", http.MethodGet, requestUrl, nil)
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		connection.coverArts[id] = nil
+		coverArts[id] = nil
 		return nil, fmt.Errorf("[%s] failed to make GET request: %v", caller, err)
 	}
 
 	if res.Body != nil {
 		defer res.Body.Close()
 	} else {
-		connection.coverArts[id] = nil
+		coverArts[id] = nil
 		return nil, fmt.Errorf("[%s] response body is nil", caller)
 	}
 
 	if res.StatusCode != http.StatusOK {
-		connection.coverArts[id] = nil
+		coverArts[id] = nil
 		return nil, fmt.Errorf("[%s] unexpected status code: %d, status: %s", caller, res.StatusCode, res.Status)
 	}
 
 	if len(res.Header["Content-Type"]) == 0 {
-		connection.coverArts[id] = nil
+		coverArts[id] = nil
 		return nil, fmt.Errorf("[%s] unknown image type (no content-type from server)", caller)
 	}
 	responseBody, err := io.ReadAll(res.Body)
 	if err != nil {
-		connection.coverArts[id] = nil
+		coverArts[id] = nil
 		return nil, fmt.Errorf("[%s] failed to read response body: %v", caller, err)
 	}
 	var art image.Image
@@ -454,68 +436,68 @@ func (connection *SubsonicConnection) GetCoverArt(id string) (image.Image, error
 	case "image/webp":
 		art, err = webp.Decode(bytes.NewReader(responseBody))
 	default:
-		connection.coverArts[id] = nil
+		coverArts[id] = nil
 		return nil, fmt.Errorf("[%s] unhandled image type %s: %v", caller, res.Header["Content-Type"][0], err)
 	}
 	if art != nil {
-		// FIXME connection.coverArts shouldn't grow indefinitely. Add some LRU cleanup after loading a few hundred cover arts.
-		connection.coverArts[id] = art
+		// FIXME coverArts shouldn't grow indefinitely. Add some LRU cleanup after loading a few hundred cover arts.
+		coverArts[id] = art
 	}
 	return art, err
 }
 
-func (connection *SubsonicConnection) GetRandomSongs(Id string, randomType string) (*SubsonicResponse, error) {
-	query := defaultQuery(connection)
+func (c *SubsonicConnection) GetRandomSongs(Id string, randomType string) (*SubsonicResponse, error) {
+	query := defaultQuery(c)
 
 	// Set the default size for random/similar songs, clamped to 500
 	size := "50"
-	if connection.RandomSongNumber > 0 && connection.RandomSongNumber < 500 {
-		size = strconv.FormatInt(int64(connection.RandomSongNumber), 10)
+	if c.conf.RandomSongNumber > 0 && c.conf.RandomSongNumber < 500 {
+		size = strconv.FormatInt(int64(c.conf.RandomSongNumber), 10)
 	}
 
 	switch randomType {
 	case "random":
 		query.Set("size", size)
-		requestUrl := connection.Host + "/rest/getRandomSongs?" + query.Encode()
-		return connection.getResponse("GetRandomSongs", requestUrl)
+		requestUrl := c.conf.Host + "/rest/getRandomSongs?" + query.Encode()
+		return c.getResponse("GetRandomSongs", requestUrl)
 
 	case "similar":
 		query.Set("id", Id)
 		query.Set("count", size)
-		requestUrl := connection.Host + "/rest/getSimilarSongs?" + query.Encode()
-		return connection.getResponse("GetSimilar", requestUrl)
+		requestUrl := c.conf.Host + "/rest/getSimilarSongs?" + query.Encode()
+		return c.getResponse("GetSimilar", requestUrl)
 
 	default:
 		query.Set("size", size)
-		requestUrl := connection.Host + "/rest/getRandomSongs?" + query.Encode()
-		return connection.getResponse("GetRandomSongs", requestUrl)
+		requestUrl := c.conf.Host + "/rest/getRandomSongs?" + query.Encode()
+		return c.getResponse("GetRandomSongs", requestUrl)
 	}
 }
 
-func (connection *SubsonicConnection) ScrobbleSubmission(id string, isSubmission bool) (resp *SubsonicResponse, err error) {
-	query := defaultQuery(connection)
+func (c *SubsonicConnection) ScrobbleSubmission(id string, isSubmission bool) (resp *SubsonicResponse, err error) {
+	query := defaultQuery(c)
 	query.Set("id", id)
 
 	// optional field, false for "now playing", true for "submission"
 	query.Set("submission", strconv.FormatBool(isSubmission))
 
-	requestUrl := connection.Host + "/rest/scrobble" + "?" + query.Encode()
-	resp, err = connection.getResponse("ScrobbleSubmission", requestUrl)
+	requestUrl := c.conf.Host + "/rest/scrobble" + "?" + query.Encode()
+	resp, err = c.getResponse("ScrobbleSubmission", requestUrl)
 	return
 }
 
-func (connection *SubsonicConnection) GetStarred() (*SubsonicResponse, error) {
-	query := defaultQuery(connection)
-	requestUrl := connection.Host + "/rest/getStarred" + "?" + query.Encode()
-	resp, err := connection.getResponse("GetStarred", requestUrl)
+func (c *SubsonicConnection) GetStarred() (*SubsonicResponse, error) {
+	query := defaultQuery(c)
+	requestUrl := c.conf.Host + "/rest/getStarred" + "?" + query.Encode()
+	resp, err := c.getResponse("GetStarred", requestUrl)
 	if err != nil {
 		return resp, err
 	}
 	return resp, nil
 }
 
-func (connection *SubsonicConnection) ToggleStar(id string, starredItems map[string]struct{}) (*SubsonicResponse, error) {
-	query := defaultQuery(connection)
+func (c *SubsonicConnection) ToggleStar(id string, starredItems map[string]struct{}) (*SubsonicResponse, error) {
+	query := defaultQuery(c)
 	query.Set("id", id)
 
 	_, ok := starredItems[id]
@@ -525,8 +507,8 @@ func (connection *SubsonicConnection) ToggleStar(id string, starredItems map[str
 		action = "unstar"
 	}
 
-	requestUrl := connection.Host + "/rest/" + action + "?" + query.Encode()
-	resp, err := connection.getResponse("ToggleStar", requestUrl)
+	requestUrl := c.conf.Host + "/rest/" + action + "?" + query.Encode()
+	resp, err := c.getResponse("ToggleStar", requestUrl)
 	if err != nil {
 		if ok {
 			delete(starredItems, id)
@@ -538,10 +520,10 @@ func (connection *SubsonicConnection) ToggleStar(id string, starredItems map[str
 	return resp, nil
 }
 
-func (connection *SubsonicConnection) GetPlaylists() (*SubsonicResponse, error) {
-	query := defaultQuery(connection)
-	requestUrl := connection.Host + "/rest/getPlaylists" + "?" + query.Encode()
-	resp, err := connection.getResponse("GetPlaylists", requestUrl)
+func (c *SubsonicConnection) GetPlaylists() (*SubsonicResponse, error) {
+	query := defaultQuery(c)
+	requestUrl := c.conf.Host + "/rest/getPlaylists" + "?" + query.Encode()
+	resp, err := c.getResponse("GetPlaylists", requestUrl)
 	if err != nil {
 		return resp, err
 	}
@@ -553,7 +535,7 @@ func (connection *SubsonicConnection) GetPlaylists() (*SubsonicResponse, error) 
 			continue
 		}
 
-		response, err := connection.GetPlaylist(string(playlist.Id))
+		response, err := c.GetPlaylist(string(playlist.Id))
 		if err != nil {
 			return nil, err
 		}
@@ -564,12 +546,12 @@ func (connection *SubsonicConnection) GetPlaylists() (*SubsonicResponse, error) 
 	return resp, nil
 }
 
-func (connection *SubsonicConnection) GetPlaylist(id string) (*SubsonicResponse, error) {
-	query := defaultQuery(connection)
+func (c *SubsonicConnection) GetPlaylist(id string) (*SubsonicResponse, error) {
+	query := defaultQuery(c)
 	query.Set("id", id)
 
-	requestUrl := connection.Host + "/rest/getPlaylist" + "?" + query.Encode()
-	return connection.getResponse("GetPlaylist", requestUrl)
+	requestUrl := c.conf.Host + "/rest/getPlaylist" + "?" + query.Encode()
+	return c.getResponse("GetPlaylist", requestUrl)
 }
 
 // CreatePlaylist creates or updates a playlist on the server.
@@ -579,11 +561,11 @@ func (connection *SubsonicConnection) GetPlaylist(id string) (*SubsonicResponse,
 // If _both_ id and name are poplated, the function returns an error.
 // songIds may be nil, in which case the new playlist is created empty, or all
 // songs are removed from the existing playlist.
-func (connection *SubsonicConnection) CreatePlaylist(id, name string, songIds []string) (*SubsonicResponse, error) {
+func (c *SubsonicConnection) CreatePlaylist(id, name string, songIds []string) (*SubsonicResponse, error) {
 	if (id == "" && name == "") || (id != "" && name != "") {
 		return nil, errors.New("CreatePlaylist: exactly one of id or name must be provided")
 	}
-	query := defaultQuery(connection)
+	query := defaultQuery(c)
 	if id != "" {
 		query.Set("id", id)
 	} else {
@@ -592,15 +574,15 @@ func (connection *SubsonicConnection) CreatePlaylist(id, name string, songIds []
 	for _, sid := range songIds {
 		query.Add("songId", sid)
 	}
-	requestUrl := connection.Host + "/rest/createPlaylist" + "?" + query.Encode()
-	return connection.getResponse("GetPlaylist", requestUrl)
+	requestUrl := c.conf.Host + "/rest/createPlaylist" + "?" + query.Encode()
+	return c.getResponse("GetPlaylist", requestUrl)
 }
 
-func (connection *SubsonicConnection) GetAuthToken(caller string) (string, string, error) {
-	if connection.Authentik && len(connection.ClientId) > 0 {
-		if len(connection.token) == 0 {
-			payload := fmt.Sprintf("grant_type=client_credentials&client_id=%s&username=%s&password=%s&scope=profile", connection.ClientId, connection.Username, connection.Password)
-			auth, err := http.NewRequest(http.MethodPost, connection.AuthURL, strings.NewReader(payload))
+func (c *SubsonicConnection) GetAuthToken(caller string) (string, string, error) {
+	if c.conf.Authentik && len(c.conf.ClientId) > 0 {
+		if len(token) == 0 {
+			payload := fmt.Sprintf("grant_type=client_credentials&client_id=%s&username=%s&password=%s&scope=profile", c.conf.ClientId, c.conf.Username, c.conf.Password)
+			auth, err := http.NewRequest(http.MethodPost, c.conf.AuthURL, strings.NewReader(payload))
 			if err != nil {
 				return "", "", fmt.Errorf("[%s] Could not create SSO auth request: %v", caller, err)
 			}
@@ -623,19 +605,19 @@ func (connection *SubsonicConnection) GetAuthToken(caller string) (string, strin
 			if err != nil {
 				return "", "", fmt.Errorf("[%s] failed to unmarshal SSO auth response body: %v", caller, err)
 			}
-			connection.token = authResponse.AccessToken
+			token = authResponse.AccessToken
 		}
-		return "Authorization", "Bearer " + connection.token, nil
+		return "Authorization", "Bearer " + token, nil
 	}
 	return "", "", nil
 }
 
-func (connection *SubsonicConnection) baseRequest(caller, method, requestUrl string, body io.Reader) (*http.Request, error) {
+func (c *SubsonicConnection) baseRequest(caller, method, requestUrl string, body io.Reader) (*http.Request, error) {
 	req, err := http.NewRequest(method, requestUrl, body)
 	if err != nil {
 		return nil, fmt.Errorf("[%s] Could not create request: %v", caller, err)
 	}
-	header, value, err := connection.GetAuthToken(caller)
+	header, value, err := c.GetAuthToken(caller)
 	if err != nil {
 		return nil, err
 	}
@@ -643,8 +625,8 @@ func (connection *SubsonicConnection) baseRequest(caller, method, requestUrl str
 	return req, nil
 }
 
-func (connection *SubsonicConnection) getResponse(caller, requestUrl string) (*SubsonicResponse, error) {
-	req, err := connection.baseRequest(caller, http.MethodGet, requestUrl, nil)
+func (c *SubsonicConnection) getResponse(caller, requestUrl string) (*SubsonicResponse, error) {
+	req, err := c.baseRequest(caller, http.MethodGet, requestUrl, nil)
 	if err != nil {
 		return nil, fmt.Errorf("[%s] Could not create request: %v", caller, err)
 	}
@@ -678,70 +660,70 @@ func (connection *SubsonicConnection) getResponse(caller, requestUrl string) (*S
 	return &decodedBody.Response, nil
 }
 
-func (connection *SubsonicConnection) DeletePlaylist(id string) error {
-	query := defaultQuery(connection)
+func (c *SubsonicConnection) DeletePlaylist(id string) error {
+	query := defaultQuery(c)
 	query.Set("id", id)
-	requestUrl := connection.Host + "/rest/deletePlaylist" + "?" + query.Encode()
-	req, err := connection.baseRequest("DeletePlaylist", http.MethodGet, requestUrl, nil)
+	requestUrl := c.conf.Host + "/rest/deletePlaylist" + "?" + query.Encode()
+	req, err := c.baseRequest("DeletePlaylist", http.MethodGet, requestUrl, nil)
 	_, err = http.DefaultClient.Do(req)
 	return err
 }
 
-func (connection *SubsonicConnection) AddSongToPlaylist(playlistId string, songId string) error {
-	query := defaultQuery(connection)
+func (c *SubsonicConnection) AddSongToPlaylist(playlistId string, songId string) error {
+	query := defaultQuery(c)
 	query.Set("playlistId", playlistId)
 	query.Set("songIdToAdd", songId)
-	requestUrl := connection.Host + "/rest/updatePlaylist" + "?" + query.Encode()
-	req, err := connection.baseRequest("AddSongToPlaylist", http.MethodGet, requestUrl, nil)
+	requestUrl := c.conf.Host + "/rest/updatePlaylist" + "?" + query.Encode()
+	req, err := c.baseRequest("AddSongToPlaylist", http.MethodGet, requestUrl, nil)
 	_, err = http.DefaultClient.Do(req)
 	return err
 }
 
-func (connection *SubsonicConnection) RemoveSongFromPlaylist(playlistId string, songIndex int) error {
-	query := defaultQuery(connection)
+func (c *SubsonicConnection) RemoveSongFromPlaylist(playlistId string, songIndex int) error {
+	query := defaultQuery(c)
 	query.Set("playlistId", playlistId)
 	query.Set("songIndexToRemove", strconv.Itoa(songIndex))
-	requestUrl := connection.Host + "/rest/updatePlaylist" + "?" + query.Encode()
-	req, err := connection.baseRequest("RemoveSongFromPlaylist", http.MethodGet, requestUrl, nil)
+	requestUrl := c.conf.Host + "/rest/updatePlaylist" + "?" + query.Encode()
+	req, err := c.baseRequest("RemoveSongFromPlaylist", http.MethodGet, requestUrl, nil)
 	_, err = http.DefaultClient.Do(req)
 	return err
 }
 
 // note that this function does not make a request, it just formats the play url
 // to pass to mpv
-func (connection *SubsonicConnection) GetPlayUrl(entity *SubsonicEntity) string {
+func (c *SubsonicConnection) GetPlayUrl(entity *SubsonicEntity) string {
 	// we don't want to call stream on a directory
 	if entity.IsDirectory {
 		return ""
 	}
 
-	query := defaultQuery(connection)
+	query := defaultQuery(c)
 	query.Set("id", entity.Id)
-	return connection.Host + "/rest/stream" + "?" + query.Encode()
+	return c.conf.Host + "/rest/stream" + "?" + query.Encode()
 }
 
 // Search uses the Subsonic search3 API to query a server for all songs that have
 // ID3 tags that match the query. The query is global, in that it matches in any
 // ID3 field.
 // https://www.subsonic.org/pages/api.jsp#search3
-func (connection *SubsonicConnection) Search(searchTerm string, artistOffset, albumOffset, songOffset int) (*SubsonicResponse, error) {
-	query := defaultQuery(connection)
+func (c *SubsonicConnection) Search(searchTerm string, artistOffset, albumOffset, songOffset int) (*SubsonicResponse, error) {
+	query := defaultQuery(c)
 	query.Set("query", searchTerm)
 	query.Set("artistOffset", strconv.Itoa(artistOffset))
 	query.Set("albumOffset", strconv.Itoa(albumOffset))
 	query.Set("songOffset", strconv.Itoa(songOffset))
-	requestUrl := connection.Host + "/rest/search3" + "?" + query.Encode()
-	res, err := connection.getResponse("Search", requestUrl)
+	requestUrl := c.conf.Host + "/rest/search3" + "?" + query.Encode()
+	res, err := c.getResponse("Search", requestUrl)
 	return res, err
 }
 
 // StartScan tells the Subsonic server to initiate a media library scan. Whether
 // this is a deep or surface scan is dependent on the server implementation.
 // https://subsonic.org/pages/api.jsp#startScan
-func (connection *SubsonicConnection) StartScan() error {
-	query := defaultQuery(connection)
-	requestUrl := fmt.Sprintf("%s/rest/startScan?%s", connection.Host, query.Encode())
-	if res, err := connection.getResponse("StartScan", requestUrl); err != nil {
+func (c *SubsonicConnection) StartScan() error {
+	query := defaultQuery(c)
+	requestUrl := fmt.Sprintf("%s/rest/startScan?%s", c.conf.Host, query.Encode())
+	if res, err := c.getResponse("StartScan", requestUrl); err != nil {
 		return err
 	} else if !res.ScanStatus.Scanning {
 		return fmt.Errorf("server returned false for scan status on scan attempt")
@@ -749,20 +731,20 @@ func (connection *SubsonicConnection) StartScan() error {
 	return nil
 }
 
-func (connection *SubsonicConnection) SavePlayQueue(queueIds []string, current string, position int) error {
-	query := defaultQuery(connection)
+func (c *SubsonicConnection) SavePlayQueue(queueIds []string, current string, position int) error {
+	query := defaultQuery(c)
 	for _, songId := range queueIds {
 		query.Add("id", songId)
 	}
 	query.Set("current", current)
 	query.Set("position", fmt.Sprintf("%d", position))
-	requestUrl := fmt.Sprintf("%s/rest/savePlayQueue?%s", connection.Host, query.Encode())
-	_, err := connection.getResponse("SavePlayQueue", requestUrl)
+	requestUrl := fmt.Sprintf("%s/rest/savePlayQueue?%s", c.conf.Host, query.Encode())
+	_, err := c.getResponse("SavePlayQueue", requestUrl)
 	return err
 }
 
-func (connection *SubsonicConnection) LoadPlayQueue() (*SubsonicResponse, error) {
-	query := defaultQuery(connection)
-	requestUrl := fmt.Sprintf("%s/rest/getPlayQueue?%s", connection.Host, query.Encode())
-	return connection.getResponse("GetPlayQueue", requestUrl)
+func (c *SubsonicConnection) LoadPlayQueue() (*SubsonicResponse, error) {
+	query := defaultQuery(c)
+	requestUrl := fmt.Sprintf("%s/rest/getPlayQueue?%s", c.conf.Host, query.Encode())
+	return c.getResponse("GetPlayQueue", requestUrl)
 }

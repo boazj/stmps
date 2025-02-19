@@ -43,8 +43,8 @@ type LoggerImpl struct {
 	level LogLevel
 }
 
-func Init(level LogLevel) *LoggerImpl {
-	return &LoggerImpl{make(chan string, 100), level}
+func Init(level LogLevel) LoggerImpl {
+	return LoggerImpl{make(chan string, 100), level}
 }
 
 func (l *LoggerImpl) GetLogLevel() LogLevel {

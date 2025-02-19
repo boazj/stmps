@@ -1,4 +1,4 @@
-package subsonic
+package service
 
 import (
 	"net/http"

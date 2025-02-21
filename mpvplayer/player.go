@@ -8,8 +8,8 @@ import (
 	"math/rand"
 	"strconv"
 
-	"github.com/spezifisch/stmps/logger"
 	"github.com/spezifisch/stmps/remote"
+	"github.com/spezifisch/stmps/utils"
 	"github.com/supersonic-app/go-mpv"
 )
 
@@ -20,7 +20,7 @@ type Player struct {
 	mpvEvents     chan *mpv.Event
 	eventConsumer EventConsumer
 	queue         PlayerQueue
-	logger        logger.Logger
+	logger        utils.Logger
 
 	replaceInProgress bool
 	stopped           bool
@@ -45,7 +45,7 @@ type Player struct {
 
 var _ remote.ControlledPlayer = (*Player)(nil)
 
-func NewPlayer(logger logger.Logger, options map[string]string) (player *Player, err error) {
+func NewPlayer(logger utils.Logger, options map[string]string) (player *Player, err error) {
 	m := mpv.Create()
 
 	for opt, value := range options {

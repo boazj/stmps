@@ -8,7 +8,6 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
-	"github.com/spezifisch/stmps/logger"
 	"github.com/spezifisch/stmps/service"
 	"github.com/spezifisch/stmps/utils"
 )
@@ -28,7 +27,7 @@ type BrowserPage struct {
 
 	// external refs
 	ui     *Ui
-	logger logger.Logger
+	logger utils.Logger
 }
 
 func (ui *Ui) createBrowserPage(indexes *[]service.SubsonicIndex) *BrowserPage {
@@ -135,7 +134,7 @@ func (ui *Ui) createBrowserPage(indexes *[]service.SubsonicIndex) *BrowserPage {
 			ui.connection.ClearCache()
 
 			// Sort the indexes before adding to the list
-			for _, index := range indexResponse.Indexes.Index {
+			for _, index := range indexResponse.Indexes {
 				sort.Slice(index.Artists, func(i, j int) bool {
 					artistI, err := utils.Normalize(index.Artists[i].Name)
 					if err != nil {

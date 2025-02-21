@@ -8,16 +8,16 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/spezifisch/stmps/logger"
 	"github.com/spezifisch/stmps/mpvplayer"
+	"github.com/spezifisch/stmps/utils"
 	"github.com/stretchr/testify/assert"
 )
 
 // Test initialization of the player
 func TestPlayerInitialization(t *testing.T) {
 	playerOptions := make(map[string]string)
-	rawLogger := logger.Init(logger.Info)
-	var logger logger.Logger = &rawLogger
+	rawLogger := utils.InitLogger(utils.Info)
+	var logger utils.Logger = &rawLogger
 	player, err := mpvplayer.NewPlayer(logger, playerOptions)
 	assert.NoError(t, err, "Player initialization should not return an error")
 	assert.NotNil(t, player, "Player should be initialized")

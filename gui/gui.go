@@ -6,10 +6,10 @@ package gui
 import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
-	"github.com/spezifisch/stmps/logger"
 	"github.com/spezifisch/stmps/mpvplayer"
 	"github.com/spezifisch/stmps/remote"
 	"github.com/spezifisch/stmps/service"
+	"github.com/spezifisch/stmps/utils"
 )
 
 // struct contains all the updatable elements of the Ui
@@ -58,7 +58,7 @@ type Ui struct {
 	playlists  []service.SubsonicPlaylist
 	connection *service.SubsonicConnection
 	player     *mpvplayer.Player
-	logger     logger.Logger
+	logger     utils.Logger
 }
 
 const (
@@ -80,7 +80,7 @@ const (
 func InitGui(indexes *[]service.SubsonicIndex,
 	connection *service.SubsonicConnection,
 	player *mpvplayer.Player,
-	logger logger.Logger,
+	logger utils.Logger,
 	mprisPlayer *remote.MprisPlayer,
 ) (ui *Ui) {
 	ui = &Ui{

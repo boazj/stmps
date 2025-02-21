@@ -10,8 +10,8 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
-	"github.com/spezifisch/stmps/logger"
 	"github.com/spezifisch/stmps/service"
+	"github.com/spezifisch/stmps/utils"
 )
 
 type SearchPage struct {
@@ -31,7 +31,7 @@ type SearchPage struct {
 
 	// external refs
 	ui     *Ui
-	logger logger.Logger
+	logger utils.Logger
 }
 
 func (ui *Ui) createSearchPage() *SearchPage {

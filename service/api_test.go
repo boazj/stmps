@@ -60,7 +60,7 @@ func TestGetResponse(t *testing.T) {
 			connection := &SubsonicConnection{}
 
 			// Call the function
-			response, err := connection.getResponse(tc.caller, server.URL)
+			response, err := connection.getResponse(server.URL)
 
 			// Validate the results
 			if tc.expectError {

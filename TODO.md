@@ -14,12 +14,15 @@
 - [ ] Fix volume control
 - [x] Fix config file location
 - Architecture
-  - Infra
-    - [ ] Context
-    - [ ] Logger
+  - CLI
     - [ ] Config
+    - [ ] Config file
+  - Infra
+    - [x] Context (ConfigProvider)
+    - [x] Logger
+    - [x] Config
   - Subsonic / Media Service - Responsible on getting available tracks and metadata
-    - [ ] Connector
+    - [-] Connector
     - [ ] SDK / API
       - [ ] Cache
   - Player

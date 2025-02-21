@@ -6,8 +6,8 @@ package gui
 import (
 	"time"
 
-	"github.com/spezifisch/stmps/logger"
 	"github.com/spezifisch/stmps/mpvplayer"
+	"github.com/spezifisch/stmps/utils"
 )
 
 type eventLoop struct {
@@ -49,7 +49,7 @@ func (ui *Ui) guiEventLoop() {
 			// ui.logger.Printf("guiEventLoop: %f events per second", events/10.0)
 			events = 0
 
-		case msg := <-ui.logger.(*logger.LoggerImpl).Output: // TODO: probably should have something better here
+		case msg := <-ui.logger.(*utils.LoggerImpl).Output: // TODO: probably should have something better here
 			// handle log page output
 			ui.logPage.Print(msg)
 

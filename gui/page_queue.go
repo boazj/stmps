@@ -16,7 +16,6 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
-	"github.com/spezifisch/stmps/logger"
 	"github.com/spezifisch/stmps/mpvplayer"
 	"github.com/spezifisch/stmps/service"
 	"github.com/spezifisch/stmps/utils"
@@ -54,7 +53,7 @@ type QueuePage struct {
 
 	// external refs
 	ui     *Ui
-	logger logger.Logger
+	logger utils.Logger
 
 	songInfoTemplate *template.Template
 }

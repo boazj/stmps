@@ -6,7 +6,6 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 	"github.com/spezifisch/stmps/consts"
-	"github.com/spezifisch/stmps/logger"
 	"github.com/spezifisch/stmps/utils"
 )
 
@@ -17,10 +16,10 @@ type TopBar struct {
 
 	// external refs
 	// ui     *Ui
-	logger logger.Logger
+	logger utils.Logger
 }
 
-func InitTopBar(logger logger.Logger) *TopBar {
+func InitTopBar(logger utils.Logger) *TopBar {
 	startStopStatus := tview.NewTextView().
 		SetTextAlign(tview.AlignLeft).
 		SetDynamicColors(true).

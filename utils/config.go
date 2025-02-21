@@ -2,12 +2,11 @@ package utils
 
 import (
 	"github.com/spezifisch/stmps/consts"
-	"github.com/spezifisch/stmps/logger"
 	"github.com/spf13/viper"
 )
 
 type ConfigProvider interface {
-	Log() logger.Logger
+	Log() Logger
 	Conf() *Config
 }
 
@@ -34,7 +33,7 @@ type Config struct {
 }
 
 type ConfigProviderImpl struct {
-	logger logger.Logger
+	logger Logger
 	config *Config
 }
 
@@ -74,15 +73,15 @@ func InitConfig() *Config {
 
 func InitConfigProvider() *ConfigProviderImpl {
 	conf := InitConfig()
-	rawLogger := logger.Init(logger.Info)
-	var l logger.Logger = &rawLogger
+	rawLogger := InitLogger(Info)
+	var l Logger = &rawLogger
 	return &ConfigProviderImpl{
 		l,
 		conf,
 	}
 }
 
-func (c *ConfigProviderImpl) Log() logger.Logger {
+func (c *ConfigProviderImpl) Log() Logger {
 	return c.logger
 }
 

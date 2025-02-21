@@ -10,18 +10,18 @@ import (
 	"github.com/godbus/dbus/v5"
 	"github.com/godbus/dbus/v5/introspect"
 	"github.com/godbus/dbus/v5/prop"
-	"github.com/spezifisch/stmps/logger"
+	"github.com/spezifisch/stmps/utils"
 )
 
 type MprisPlayer struct {
 	dbus   *dbus.Conn
 	player ControlledPlayer
-	logger logger.Logger
+	logger utils.Logger
 
 	metadata map[string]interface{}
 }
 
-func RegisterMprisPlayer(player ControlledPlayer, logger_ logger.Logger) (mpp *MprisPlayer, err error) {
+func RegisterMprisPlayer(player ControlledPlayer, logger_ utils.Logger) (mpp *MprisPlayer, err error) {
 	conn, err := dbus.ConnectSessionBus()
 	if err != nil {
 		return

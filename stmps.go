@@ -14,7 +14,6 @@ import (
 	"runtime/pprof"
 
 	"github.com/spezifisch/stmps/gui"
-	"github.com/spezifisch/stmps/logger"
 	"github.com/spezifisch/stmps/mpvplayer"
 	"github.com/spezifisch/stmps/remote"
 	"github.com/spezifisch/stmps/service"
@@ -92,7 +91,7 @@ func parseConfig() {
 }
 
 // initCommandHandler sets up tview-command as main input handler
-func initCommandHandler(logger logger.Logger) {
+func initCommandHandler(logger utils.Logger) {
 	tviewcommand.SetLogHandler(func(msg string) {
 		logger.Info(msg)
 	})
@@ -236,7 +235,7 @@ func main() {
 			fmt.Printf("    [%d] %s\n", pl.Entries.Len(), pl.Name)
 		}
 		fmt.Printf("  Indexes:\n")
-		for _, pl := range indexResponse.Indexes.Index {
+		for _, pl := range indexResponse.Indexes {
 			fmt.Printf("    %s\n", pl.Name)
 		}
 		fmt.Printf("Playlist response: (this can take a while)\n")
@@ -254,7 +253,7 @@ func main() {
 			fmt.Printf("    [%d] %s\n", pl.Entries.Len(), pl.Name)
 		}
 		fmt.Printf("  Indexes:\n")
-		for _, pl := range playlistResponse.Indexes.Index {
+		for _, pl := range playlistResponse.Indexes {
 			fmt.Printf("    %s\n", pl.Name)
 		}
 
@@ -267,7 +266,7 @@ func main() {
 		return
 	}
 
-	ui := gui.InitGui(&indexResponse.Indexes.Index,
+	ui := gui.InitGui(&indexResponse.Indexes,
 		connection,
 		player,
 		conf.Log(),

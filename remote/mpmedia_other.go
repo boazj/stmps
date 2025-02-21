@@ -9,10 +9,10 @@ package remote
 import (
 	"errors"
 
-	"github.com/spezifisch/stmps/logger"
+	"github.com/spezifisch/stmps/utils"
 )
 
-func RegisterMPMediaHandler(_ ControlledPlayer, _ logger.Logger) error {
+func RegisterMPMediaHandler(_ ControlledPlayer, _ utils.Logger) error {
 	// MPMediaHandler only supports macOS.
 	return errors.New("unsupported platform")
 }
